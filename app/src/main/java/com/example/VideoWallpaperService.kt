@@ -153,13 +153,18 @@ class VideoWallpaperService : WallpaperService() {
 
             try {
                 mediaPlayer = MediaPlayer().apply {
-                    setDataSource(applicationContext, Uri.parse(item.videoUriStr))
+                    if (item.videoUriStr.startsWith("content://")) {
+                        setDataSource(applicationContext, Uri.parse(item.videoUriStr))
+                    } else {
+                        setDataSource(item.videoUriStr)
+                    }
                     setSurface(surfaceHolder.surface)
                     // Muted by default to fit clean wallpaper and power consumption expectations
                     setVolume(0f, 0f) 
                     isLooping = item.isLooping && (item.trimEndMs == 0L)
                     
                     setOnPreparedListener { mp ->
+                        mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
                         if (item.trimStartMs > 0L) {
                             mp.seekTo(item.trimStartMs.toInt())
                         }

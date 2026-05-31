@@ -50,19 +50,38 @@ class WallpaperViewModel(application: Application) : AndroidViewModel(applicatio
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
 
+    private suspend fun copyUriToInternalStorage(context: Context, uri: Uri): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val fileName = "video_${System.currentTimeMillis()}.mp4"
+                val file = File(context.filesDir, fileName)
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(file).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                file.absolutePath
+            } catch (e: Exception) {
+                Log.e("WallpaperViewModel", "Error copying video to internal storage", e)
+                null
+            }
+        }
+    }
+
     fun startEditingNewVideo(uri: Uri, context: Context, title: String) {
         viewModelScope.launch {
             _isProcessing.value = true
-            val uriString = uri.toString()
-            val duration = getVideoDuration(context, uri)
+            val localVideoPath = copyUriToInternalStorage(context, uri)
+            val finalVideoPath = localVideoPath ?: uri.toString()
+            val duration = getVideoDuration(context, Uri.parse(finalVideoPath))
             _videoDurationMs.value = duration
 
             // Save a default thumbnail of the first frame
-            val localThumbnail = extractVideoFrameAt(context, uri.toString(), 0L)
+            val localThumbnail = extractVideoFrameAt(context, finalVideoPath, 0L)
 
             _editingItem.value = WallpaperItem(
                 title = title,
-                videoUriStr = uriString,
+                videoUriStr = finalVideoPath,
                 trimStartMs = 0L,
                 trimEndMs = duration,
                 thumbnailUriStr = localThumbnail,
@@ -140,6 +159,12 @@ class WallpaperViewModel(application: Application) : AndroidViewModel(applicatio
             // Clean up files if they are in app sandbox to keep device storage clean
             item.thumbnailUriStr?.let { path ->
                 val file = File(path)
+                if (file.exists() && file.parent == getApplication<Application>().filesDir.absolutePath) {
+                    file.delete()
+                }
+            }
+            if (!item.videoUriStr.startsWith("content://")) {
+                val file = File(item.videoUriStr)
                 if (file.exists() && file.parent == getApplication<Application>().filesDir.absolutePath) {
                     file.delete()
                 }

@@ -12,6 +12,7 @@ import android.os.Looper
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.util.Log
+import android.media.MediaPlayer
 import android.widget.VideoView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -766,72 +767,6 @@ fun VideoEditorScreen(
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-        // Choose Cover Frame from Video
-        Text(
-            text = "Выбор обложки для библиотеки",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.Start)
-        )
-        Text(
-            text = "Прокрутите для поиска кадра и нажмите кнопку извлечения",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.align(Alignment.Start)
-        )
-
-        Row(
-            modifier = Modifier.padding(vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.Gray)
-            ) {
-                if (item.thumbnailUriStr != null) {
-                    AsyncImage(
-                        model = File(item.thumbnailUriStr),
-                        contentDescription = "Cover preview",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Позиция кадра: ${formatTime(coverTimeMs)}", fontSize = 12.sp)
-                Slider(
-                    value = coverTimeMs.toFloat(),
-                    onValueChange = { coverTimeMs = it.toLong() },
-                    valueRange = startMsChecked.toFloat()..endMsChecked.toFloat(),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            IconButton(
-                onClick = {
-                    viewModel.changeEditingCoverFrame(context, coverTimeMs)
-                },
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
-                    .testTag("extract_cover_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = "Захват кадра",
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-        }
-
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
         // Looping setup
         Row(
             modifier = Modifier
@@ -974,12 +909,16 @@ fun VideoPreviewPlayer(
         object : Runnable {
             override fun run() {
                 val view = videoView ?: return
-                if (view.isPlaying) {
-                    val pos = view.currentPosition
-                    if (endMs > 0 && pos >= endMs) {
-                        view.seekTo(startMs.toInt())
-                        view.start()
+                try {
+                    if (view.isPlaying) {
+                        val pos = view.currentPosition
+                        if (endMs > 0 && pos >= endMs) {
+                            view.seekTo(startMs.toInt())
+                            view.start()
+                        }
                     }
+                } catch (e: Exception) {
+                    Log.e("VideoPreviewPlayer", "Error checking playback position", e)
                 }
                 handler.postDelayed(this, 150)
             }
@@ -990,26 +929,56 @@ fun VideoPreviewPlayer(
         handler.post(checkRunnable)
         onDispose {
             handler.removeCallbacks(checkRunnable)
-            videoView?.stopPlayback()
+            try {
+                videoView?.stopPlayback()
+            } catch (e: Exception) {
+                // Ignore
+            }
         }
     }
 
     AndroidView(
         factory = { ctx ->
             VideoView(ctx).apply {
-                val uri = Uri.parse(videoUriStr)
-                setVideoURI(uri)
+                setOnErrorListener { _, _, _ ->
+                    true // Handle error internally, do not pop crash dialog
+                }
                 setOnPreparedListener { mp ->
+                    mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
                     mp.setVolume(0f, 0f) // Wallpaper style (silenced preview)
                     mp.isLooping = true
-                    seekTo(startMs.toInt())
-                    start()
+                    try {
+                        seekTo(startMs.toInt())
+                        start()
+                    } catch (e: Exception) {
+                        Log.e("VideoPreviewPlayer", "Error preparing video view playback", e)
+                    }
+                }
+                tag = videoUriStr
+                if (videoUriStr.startsWith("content://")) {
+                    setVideoURI(Uri.parse(videoUriStr))
+                } else {
+                    setVideoPath(videoUriStr)
                 }
                 videoView = this
             }
         },
         update = { view ->
             videoView = view
+            val lastSetPath = view.tag as? String
+            if (lastSetPath != videoUriStr) {
+                view.tag = videoUriStr
+                try {
+                    view.stopPlayback()
+                    if (videoUriStr.startsWith("content://")) {
+                        view.setVideoURI(Uri.parse(videoUriStr))
+                    } else {
+                        view.setVideoPath(videoUriStr)
+                    }
+                } catch (e: Exception) {
+                    Log.e("VideoPreviewPlayer", "Error updating VideoView URI", e)
+                }
+            }
         },
         modifier = modifier
     )
