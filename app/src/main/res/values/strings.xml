@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">Живые Видеообои</string>
+    <string name="add_to_library">Добавить в библиотеку</string>
+    <string name="trim_title">Обрезка видео</string>
+    <string name="loop_title">Зациклить воспроизведение</string>
+    <string name="loop_desc">Повторять воспроизведение видео по кругу</string>
+    <string name="night_mode_title">Автояркость в ночное время</string>
+    <string name="night_mode_desc">Снижает яркость экрана/видео с 22:00 до 06:00 для защиты глаз и экономии энергии</string>
+    <string name="select_cover_title">Выбор обложки</string>
+    <string name="select_cover_desc">Выберите кадр видео в качестве превью</string>
+    <string name="library_title">Библиотека обоев</string>
+    <string name="empty_library_message">Библиотека пуста. Добавьте ваше первое видео в формате MP4!</string>
+    <string name="set_as_wallpaper_action">Установить как живые обои</string>
+    <string name="apply_wallpaper_success">Обои успешно подготовлены! Нажмите кнопку ниже для активации в системе.</string>
+    <string name="edit_wallpaper">Редактирование</string>
+    <string name="delete_wallpaper">Удалить</string>
+    <string name="confirm_delete">Вы уверены, что хотите удалить эти обои?</string>
+    <string name="cancel">Отмена</string>
+    <string name="save">Сохранить</string>
+    <string name="permission_required">Требуются разрешения</string>
+    <string name="permission_desc">Приложению необходим доступ к хранилищу для выбора видеофайлов.</string>
+    <string name="trim_start">Начало</string>
+    <string name="trim_end">Конец</string>
+</resources>
