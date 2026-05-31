@@ -34,6 +34,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -902,7 +903,7 @@ fun VideoPreviewPlayer(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var videoView: VideoView? = null
+    var videoView: AspectRatioVideoView? = null
 
     val handler = remember { Handler(Looper.getMainLooper()) }
     val checkRunnable = remember(videoUriStr, startMs, endMs) {
@@ -910,10 +911,10 @@ fun VideoPreviewPlayer(
             override fun run() {
                 val view = videoView ?: return
                 try {
-                    if (view.isPlaying) {
-                        val pos = view.currentPosition
-                        if (endMs > 0 && pos >= endMs) {
-                            view.seekTo(startMs.toInt())
+                    val pos = view.currentPosition
+                    if (endMs > 0 && pos >= endMs) {
+                        view.seekTo(startMs.toInt())
+                        if (!view.isPlaying) {
                             view.start()
                         }
                     }
@@ -937,51 +938,71 @@ fun VideoPreviewPlayer(
         }
     }
 
-    AndroidView(
-        factory = { ctx ->
-            VideoView(ctx).apply {
-                setOnErrorListener { _, _, _ ->
-                    true // Handle error internally, do not pop crash dialog
-                }
-                setOnPreparedListener { mp ->
-                    mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
-                    mp.setVolume(0f, 0f) // Wallpaper style (silenced preview)
-                    mp.isLooping = true
-                    try {
-                        seekTo(startMs.toInt())
-                        start()
-                    } catch (e: Exception) {
-                        Log.e("VideoPreviewPlayer", "Error preparing video view playback", e)
+    Box(
+        modifier = modifier.clipToBounds(),
+        contentAlignment = Alignment.Center
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                AspectRatioVideoView(ctx).apply {
+                    setOnErrorListener { _, _, _ ->
+                        true // Handle error internally, do not pop crash dialog
                     }
-                }
-                tag = videoUriStr
-                if (videoUriStr.startsWith("content://")) {
-                    setVideoURI(Uri.parse(videoUriStr))
-                } else {
-                    setVideoPath(videoUriStr)
-                }
-                videoView = this
-            }
-        },
-        update = { view ->
-            videoView = view
-            val lastSetPath = view.tag as? String
-            if (lastSetPath != videoUriStr) {
-                view.tag = videoUriStr
-                try {
-                    view.stopPlayback()
+                    setOnPreparedListener { mp ->
+                        mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT)
+                        mp.setVolume(0f, 0f) // Wallpaper style (silenced preview)
+                        
+                        setVideoSize(mp.videoWidth, mp.videoHeight)
+                        
+                        val duration = mp.duration.toLong()
+                        val isFullyUntrimmed = startMs <= 100L && (endMs == 0L || endMs >= duration - 100L)
+                        mp.isLooping = isFullyUntrimmed
+
+                        try {
+                            seekTo(startMs.toInt())
+                            start()
+                        } catch (e: Exception) {
+                            Log.e("VideoPreviewPlayer", "Error preparing video view playback", e)
+                        }
+                    }
+                    setOnCompletionListener { mp ->
+                        try {
+                            seekTo(startMs.toInt())
+                            start()
+                        } catch (e: Exception) {
+                            Log.e("VideoPreviewPlayer", "Error looping in onCompletion", e)
+                        }
+                    }
+                    tag = videoUriStr
                     if (videoUriStr.startsWith("content://")) {
-                        view.setVideoURI(Uri.parse(videoUriStr))
+                        setVideoURI(Uri.parse(videoUriStr))
                     } else {
-                        view.setVideoPath(videoUriStr)
+                        setVideoPath(videoUriStr)
                     }
-                } catch (e: Exception) {
-                    Log.e("VideoPreviewPlayer", "Error updating VideoView URI", e)
+                    videoView = this
                 }
-            }
-        },
-        modifier = modifier
-    )
+            },
+            update = { view ->
+                videoView = view
+                val lastSetPath = view.tag as? String
+                if (lastSetPath != videoUriStr) {
+                    view.tag = videoUriStr
+                    view.setVideoSize(0, 0)
+                    try {
+                        view.stopPlayback()
+                        if (videoUriStr.startsWith("content://")) {
+                            view.setVideoURI(Uri.parse(videoUriStr))
+                        } else {
+                            view.setVideoPath(videoUriStr)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("VideoPreviewPlayer", "Error updating VideoView URI", e)
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }
 
 // Launches native system android live wallpaper picker dialog
@@ -1040,4 +1061,67 @@ private fun getFileName(context: Context, uri: Uri): String? {
         }
     }
     return result
+}
+
+class AspectRatioVideoView @JvmOverloads constructor(
+    context: Context,
+    attrs: android.util.AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : android.widget.VideoView(context, attrs, defStyleAttr) {
+
+    private var mVideoWidth = 0
+    private var mVideoHeight = 0
+
+    fun setVideoSize(width: Int, height: Int) {
+        mVideoWidth = width
+        mVideoHeight = height
+        requestLayout()
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        var width = getDefaultSize(mVideoWidth, widthMeasureSpec)
+        var height = getDefaultSize(mVideoHeight, heightMeasureSpec)
+        if (mVideoWidth > 0 && mVideoHeight > 0) {
+            val widthSpecMode = MeasureSpec.getMode(widthMeasureSpec)
+            val widthSpecSize = MeasureSpec.getSize(widthMeasureSpec)
+            val heightSpecMode = MeasureSpec.getMode(heightMeasureSpec)
+            val heightSpecSize = MeasureSpec.getSize(heightMeasureSpec)
+
+            if (widthSpecMode == MeasureSpec.EXACTLY && heightSpecMode == MeasureSpec.EXACTLY) {
+                width = widthSpecSize
+                height = heightSpecSize
+                if (mVideoWidth * height < width * mVideoHeight) {
+                    width = height * mVideoWidth / mVideoHeight
+                } else if (mVideoWidth * height > width * mVideoHeight) {
+                    height = width * mVideoHeight / mVideoWidth
+                }
+            } else if (widthSpecMode == MeasureSpec.EXACTLY) {
+                width = widthSpecSize
+                height = width * mVideoHeight / mVideoWidth
+                if (heightSpecMode == MeasureSpec.AT_MOST && height > heightSpecSize) {
+                    height = heightSpecSize
+                    width = height * mVideoWidth / mVideoHeight
+                }
+            } else if (heightSpecMode == MeasureSpec.EXACTLY) {
+                height = heightSpecSize
+                width = height * mVideoWidth / mVideoHeight
+                if (widthSpecMode == MeasureSpec.AT_MOST && width > widthSpecSize) {
+                    width = widthSpecSize
+                    height = width * mVideoHeight / mVideoWidth
+                }
+            } else {
+                width = mVideoWidth
+                height = mVideoHeight
+                if (heightSpecMode == MeasureSpec.AT_MOST && height > heightSpecSize) {
+                    height = heightSpecSize
+                    width = height * mVideoWidth / mVideoHeight
+                }
+                if (widthSpecMode == MeasureSpec.AT_MOST && width > widthSpecSize) {
+                    width = widthSpecSize
+                    height = width * mVideoHeight / mVideoWidth
+                }
+            }
+        }
+        setMeasuredDimension(width, height)
+    }
 }

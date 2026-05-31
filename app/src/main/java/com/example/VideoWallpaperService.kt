@@ -46,11 +46,20 @@ class VideoWallpaperService : WallpaperService() {
                 val player = mediaPlayer ?: return
                 val item = activeItem ?: return
                 
-                if (player.isPlaying && item.trimEndMs > 0L) {
-                    val currentPos = player.currentPosition.toLong()
-                    if (currentPos >= item.trimEndMs) {
-                        player.seekTo(item.trimStartMs.toInt())
+                try {
+                    if (player.isPlaying && item.trimEndMs > 0L) {
+                        val currentPos = player.currentPosition.toLong()
+                        if (currentPos >= item.trimEndMs) {
+                            if (item.isLooping) {
+                                player.seekTo(item.trimStartMs.toInt())
+                            } else {
+                                player.pause()
+                                player.seekTo(item.trimStartMs.toInt())
+                            }
+                        }
                     }
+                } catch (e: Exception) {
+                    Log.e("VideoWallpaper", "Error in trim loop", e)
                 }
                 mainHandler.postDelayed(this, 150)
             }
@@ -127,6 +136,11 @@ class VideoWallpaperService : WallpaperService() {
             }
         }
 
+        override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+            super.onSurfaceChanged(holder, format, width, height)
+            adjustSurfaceSize()
+        }
+
         override fun onSurfaceDestroyed(holder: SurfaceHolder) {
             super.onSurfaceDestroyed(holder)
             stopMediaPlayer()
@@ -161,16 +175,33 @@ class VideoWallpaperService : WallpaperService() {
                     setSurface(surfaceHolder.surface)
                     // Muted by default to fit clean wallpaper and power consumption expectations
                     setVolume(0f, 0f) 
-                    isLooping = item.isLooping && (item.trimEndMs == 0L)
+                    isLooping = false // We will handle looping consistently in our prepared listener and completion listener
                     
                     setOnPreparedListener { mp ->
                         mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
+                        val duration = mp.duration.toLong()
+                        // Native looping is fine if video is untrimmed
+                        mp.isLooping = item.isLooping && (item.trimStartMs <= 0L) && (item.trimEndMs >= duration || item.trimEndMs <= 0L)
+                        
+                        adjustSurfaceSize()
+
                         if (item.trimStartMs > 0L) {
                             mp.seekTo(item.trimStartMs.toInt())
                         }
                         if (isVisible) {
                             mp.start()
                             mainHandler.post(trimLoopRunnable)
+                        }
+                    }
+                    
+                    setOnCompletionListener { mp ->
+                        if (item.isLooping) {
+                            try {
+                                mp.seekTo(item.trimStartMs.toInt())
+                                mp.start()
+                            } catch (e: Exception) {
+                                Log.e("VideoWallpaper", "Error on completion looping", e)
+                            }
                         }
                     }
                     
@@ -197,6 +228,31 @@ class VideoWallpaperService : WallpaperService() {
                 }
             }
             mediaPlayer = null
+        }
+
+        private fun adjustSurfaceSize() {
+            val player = mediaPlayer ?: return
+            val holder = surfaceHolder ?: return
+            try {
+                val videoWidth = player.videoWidth
+                val videoHeight = player.videoHeight
+                if (videoWidth > 0 && videoHeight > 0) {
+                    val rect = holder.surfaceFrame
+                    val screenWidth = rect.width()
+                    val screenHeight = rect.height()
+                    if (screenWidth > 0 && screenHeight > 0) {
+                        val scaleX = screenWidth.toFloat() / videoWidth
+                        val scaleY = screenHeight.toFloat() / videoHeight
+                        val scale = Math.max(scaleX, scaleY)
+                        val targetWidth = (videoWidth * scale).toInt()
+                        val targetHeight = (videoHeight * scale).toInt()
+                        holder.setFixedSize(targetWidth, targetHeight)
+                        Log.d("VideoWallpaper", "Sizing video surface: videoSize=${videoWidth}x${videoHeight}, screen=${screenWidth}x${screenHeight}, setFixedSize=${targetWidth}x${targetHeight}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("VideoWallpaper", "Error adjusting surface size", e)
+            }
         }
 
         private fun applyNightModeIfEnabled() {
