@@ -2,15 +2,15 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFC084FC) // Soft Violet Accent
-val PurpleGrey80 = Color(0xFFCBD5E1)
-val Pink80 = Color(0xFF22D3EE)   // Cyan Accent
+// Premium Galactic & Neon Palette
+val NeonCyan = Color(0xFF00F0FF)
+val NeonPurple = Color(0xFF9D4EDD)
+val NeonPink = Color(0xFFFF007F)
+val NeonMint = Color(0xFF00FFCC)
 
-val Purple40 = Color(0xFF8B5CF6) // Deep Indigo Violet
-val PurpleGrey40 = Color(0xFF475569)
-val Pink40 = Color(0xFF0891B2)
-
-val DarkBackground = Color(0xFF0F1016)
-val DarkSurface = Color(0xFF1E202B)
-val OnDarkSurface = Color(0xFFF3F4F6)
-
+val CyberBackground = Color(0xFF0A0C10)
+val CyberCard = Color(0xFF141A26)
+val CyberBorder = Color(0xFF222B3D)
+val CyberOnCard = Color(0xFFE2E8F0)
+val CyberMuted = Color(0xFF94A3B8)
+val CyberActiveBg = Color(0xFF1E293B)

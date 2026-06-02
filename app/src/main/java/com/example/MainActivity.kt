@@ -51,7 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.data.WallpaperItem
-import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.theme.*
 import java.io.File
 import java.util.Locale
 
@@ -117,19 +117,44 @@ fun WallpaperAppScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(id = R.string.app_name),
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp,
-                        color = MaterialTheme.colorScheme.onSurface
+            Column {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FilterFrames,
+                                contentDescription = null,
+                                tint = NeonCyan,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Live-Wallpaper",
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.5.sp,
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = CyberBackground
                     )
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
                 )
-            )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(Color.Transparent, NeonCyan, NeonPurple, Color.Transparent)
+                            )
+                        )
+                )
+            }
         },
         floatingActionButton = {
             if (editingItem == null) {
@@ -141,11 +166,18 @@ fun WallpaperAppScreen(
                             permissionLauncher.launch(storagePermission)
                         }
                     },
-                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                    text = { Text(text = stringResource(id = R.string.add_to_library)) },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.testTag("add_wallpaper_fab")
+                    icon = { Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black) },
+                    text = { Text(text = stringResource(id = R.string.add_to_library), fontWeight = FontWeight.Bold, color = Color.Black) },
+                    containerColor = NeonCyan,
+                    modifier = Modifier
+                        .testTag("add_wallpaper_fab")
+                        .border(
+                            BorderStroke(
+                                width = 1.5.dp,
+                                brush = Brush.linearGradient(listOf(Color.White, NeonCyan))
+                            ),
+                            shape = FloatingActionButtonDefaults.extendedFabShape
+                        )
                 )
             }
         }
@@ -153,6 +185,14 @@ fun WallpaperAppScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            CyberBackground,
+                            Color(0xFF0F1422)
+                        )
+                    )
+                )
                 .padding(innerPadding)
         ) {
             if (isProcessing) {
@@ -218,36 +258,49 @@ fun WallpaperListScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(32.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Default.Security,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(72.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .background(NeonPurple.copy(alpha = 0.15f), CircleShape)
+                    .border(2.dp, NeonPurple, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Security,
+                    contentDescription = null,
+                    tint = NeonPurple,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = stringResource(id = R.string.permission_required),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                color = Color.White
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = stringResource(id = R.string.permission_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = CyberMuted
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             Button(
                 onClick = onRequestPermission,
-                modifier = Modifier.fillMaxWidth().testTag("permission_button")
+                colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .testTag("permission_button")
             ) {
-                Text("Предоставить доступ")
+                Text("Предоставить доступ", fontWeight = FontWeight.Bold, color = Color.White)
             }
         }
     } else if (wallpapers.isEmpty()) {
@@ -258,60 +311,93 @@ fun WallpaperListScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Default.VideoLibrary,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(84.dp)
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .background(NeonCyan.copy(alpha = 0.1f), CircleShape)
+                    .border(1.5.dp, Brush.sweepGradient(listOf(NeonCyan, NeonPurple, NeonCyan)), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.VideoLibrary,
+                    contentDescription = null,
+                    tint = NeonCyan,
+                    modifier = Modifier.size(56.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Библиотека пуста",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = stringResource(id = R.string.empty_library_message),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = CyberMuted
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             Button(
                 onClick = onSelectVideo,
-                modifier = Modifier.testTag("select_first_video_button")
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                modifier = Modifier
+                    .testTag("select_first_video_button")
+                    .height(50.dp)
+                    .border(BorderStroke(1.dp, Color.White), RoundedCornerShape(100))
             ) {
-                Icon(Icons.Default.Add, contentDescription = null)
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Выбрать MP4")
+                Text("Добавить первое видео", fontWeight = FontWeight.Bold, color = Color.Black)
             }
         }
     } else {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
+                .background(Color.Transparent),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Highlights Section
             activeWallpaper?.let { active ->
                 item {
-                    Text(
-                        text = "Активный профиль",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                    ) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "АКТИВНЫЙ ПРОФИЛЬ",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = NeonCyan,
+                            letterSpacing = 1.sp
+                        )
+                    }
                     ActiveWallpaperCard(active = active, onSetClick = { onSetActive(active) })
                 }
             }
 
             // Library header
             item {
-                Text(
-                    text = stringResource(id = R.string.library_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(vertical = 4.dp)
-                )
+                ) {
+                    Icon(Icons.Default.Wallpaper, contentDescription = null, tint = NeonPurple, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(id = R.string.library_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        letterSpacing = 0.5.sp
+                    )
+                }
             }
 
             items(wallpapers, key = { it.id }) { item ->
@@ -337,19 +423,20 @@ fun ActiveWallpaperCard(
             .testTag("active_wallpaper_card"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+            containerColor = CyberCard.copy(alpha = 0.75f)
         ),
-        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+        border = BorderStroke(1.5.dp, Brush.linearGradient(listOf(NeonCyan, NeonPurple)))
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(68.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Color.DarkGray)
+                    .border(1.dp, NeonCyan.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
             ) {
                 if (active.thumbnailUriStr != null) {
                     AsyncImage(
@@ -368,7 +455,7 @@ fun ActiveWallpaperCard(
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(
                 modifier = Modifier.weight(1f)
@@ -378,10 +465,10 @@ fun ActiveWallpaperCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -389,13 +476,13 @@ fun ActiveWallpaperCard(
                         imageVector = if (active.isLooping) Icons.Default.Loop else Icons.Default.NavigateNext,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.secondary
+                        tint = NeonPurple
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = if (active.isLooping) "Зациклен" else "Один раз",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = CyberMuted
                     )
                     if (active.nightModeEnabled) {
                         Spacer(modifier = Modifier.width(12.dp))
@@ -403,13 +490,13 @@ fun ActiveWallpaperCard(
                             imageVector = Icons.Default.Nightlight,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp),
-                            tint = Color.White
+                            tint = NeonCyan
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Автояркость",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = CyberMuted
                         )
                     }
                 }
@@ -419,12 +506,14 @@ fun ActiveWallpaperCard(
 
             Button(
                 onClick = onSetClick,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
             ) {
-                Icon(Icons.Default.Wallpaper, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Wallpaper, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Black)
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Запуск", fontSize = 13.sp)
+                Text("Запуск", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
             }
         }
     }
@@ -442,7 +531,7 @@ fun WallpaperItemRow(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(stringResource(R.string.confirm_delete)) },
+            title = { Text(stringResource(R.string.confirm_delete), color = Color.White) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -450,14 +539,16 @@ fun WallpaperItemRow(
                         showDeleteConfirm = false
                     }
                 ) {
-                    Text("Удалить", color = MaterialTheme.colorScheme.error)
+                    Text("Удалить", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text(stringResource(R.string.cancel))
+                    Text(stringResource(R.string.cancel), color = CyberMuted)
                 }
-            }
+            },
+            containerColor = CyberCard,
+            titleContentColor = Color.White
         )
     }
 
@@ -466,21 +557,26 @@ fun WallpaperItemRow(
             .fillMaxWidth()
             .clickable(onClick = onSelect)
             .testTag("wallpaper_item_card_${item.id}"),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (item.isActive) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+            containerColor = if (item.isActive) CyberActiveBg else CyberCard.copy(alpha = 0.65f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        border = BorderStroke(
+            width = if (item.isActive) 1.5.dp else 1.dp,
+            color = if (item.isActive) NeonCyan else CyberBorder
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .size(72.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(10.dp))
                     .background(Color.DarkGray)
+                    .border(1.dp, if (item.isActive) NeonCyan.copy(alpha = 0.5f) else Color.Transparent, RoundedCornerShape(10.dp))
             ) {
                 if (item.thumbnailUriStr != null) {
                     AsyncImage(
@@ -498,21 +594,22 @@ fun WallpaperItemRow(
                     )
                 }
 
-                // Small play icon overlay to represent multimedia video
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.8f),
+                    tint = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier
                         .size(24.dp)
                         .align(Alignment.Center)
+                        .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                        .padding(2.dp)
                 )
 
                 if (item.isActive) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f))
+                            .background(NeonCyan)
                             .align(Alignment.BottomCenter)
                             .padding(vertical = 2.dp)
                     ) {
@@ -520,7 +617,7 @@ fun WallpaperItemRow(
                             text = "АКТИВЕН",
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = Color.Black,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -528,7 +625,7 @@ fun WallpaperItemRow(
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(
                 modifier = Modifier.weight(1f)
@@ -538,56 +635,56 @@ fun WallpaperItemRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Loop badge
                     Icon(
                         imageVector = if (item.isLooping) Icons.Default.Repeat else Icons.Default.ArrowForward,
                         contentDescription = null,
                         modifier = Modifier.size(13.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = NeonPurple
                     )
                     Text(
                         text = if (item.isLooping) "Циклично" else "Одиночный",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = CyberMuted
                     )
 
-                    // Night mode indicator
                     if (item.nightModeEnabled) {
-                        VerticalDivider(Modifier.height(10.dp))
+                        VerticalDivider(
+                            modifier = Modifier.height(10.dp),
+                            color = CyberBorder
+                        )
                         Icon(
                             imageVector = Icons.Default.DarkMode,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
-                            tint = Color.Gray
+                            tint = NeonCyan
                         )
                         Text(
                             text = "Ночь",
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = CyberMuted
                         )
                     }
                 }
 
-                // Display Trim bounds details
                 if (item.trimStartMs > 0L || item.trimEndMs > 0L) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Отрезок: ${formatTime(item.trimStartMs)} - ${formatTime(item.trimEndMs)}",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontWeight = FontWeight.Light
+                        color = NeonMint,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
 
-            // Commands column
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -598,7 +695,7 @@ fun WallpaperItemRow(
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = NeonCyan
                     )
                 }
 
@@ -663,7 +760,7 @@ fun VideoEditorScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color.Transparent)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -673,12 +770,13 @@ fun VideoEditorScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackPressed) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = Color.White)
             }
             Text(
                 text = stringResource(R.string.edit_wallpaper),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
+                color = Color.White,
                 modifier = Modifier.padding(start = 8.dp)
             )
             Spacer(modifier = Modifier.weight(1f))
@@ -686,11 +784,15 @@ fun VideoEditorScreen(
                 onClick = {
                     viewModel.saveEditingItem()
                 },
-                modifier = Modifier.testTag("save_wallpaper_button")
+                colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .testTag("save_wallpaper_button")
+                    .border(BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f)), RoundedCornerShape(12.dp))
             ) {
-                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(stringResource(R.string.save))
+                Text(stringResource(R.string.save), fontWeight = FontWeight.Bold, color = Color.White)
             }
         }
 
@@ -699,7 +801,9 @@ fun VideoEditorScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(220.dp),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, CyberBorder),
+            colors = CardDefaults.cardColors(containerColor = CyberCard)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 VideoPreviewPlayer(
@@ -721,13 +825,14 @@ fun VideoEditorScreen(
                         ) {
                             Text(
                                 "Демонстрация ночной автояркости активна",
-                                color = Color.White.copy(alpha = 0.8f),
+                                color = NeonCyan,
                                 fontSize = 10.sp,
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .padding(8.dp)
-                                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                                    .border(0.5.dp, NeonCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
@@ -735,22 +840,29 @@ fun VideoEditorScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // Segment Trimming Sliders Section
-        Text(
-            text = stringResource(R.string.trim_title),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.align(Alignment.Start)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
+        ) {
+            Icon(Icons.Default.ContentCut, contentDescription = null, tint = NeonPurple, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.trim_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("Старт: ${formatTime(startMsChecked)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
-            Text("Стоп: ${formatTime(endMsChecked)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+            Text("Старт: ${formatTime(startMsChecked)}", fontSize = 12.sp, color = NeonCyan, fontWeight = FontWeight.Medium)
+            Text("Стоп: ${formatTime(endMsChecked)}", fontSize = 12.sp, color = NeonPurple, fontWeight = FontWeight.Medium)
         }
 
         RangeSlider(
@@ -760,13 +872,20 @@ fun VideoEditorScreen(
                 endPercentage = range.endInclusive
             },
             valueRange = 0f..1f,
+            colors = SliderDefaults.colors(
+                activeTrackColor = NeonCyan,
+                inactiveTrackColor = CyberBorder,
+                activeTickColor = NeonCyan,
+                inactiveTickColor = CyberBorder,
+                thumbColor = NeonCyan
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp)
                 .testTag("trim_range_slider")
         )
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = CyberBorder)
 
         // Looping setup
         Row(
@@ -780,22 +899,29 @@ fun VideoEditorScreen(
                 Text(
                     text = stringResource(id = R.string.loop_title),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 14.sp,
+                    color = Color.White
                 )
                 Text(
                     text = stringResource(id = R.string.loop_desc),
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = CyberMuted
                 )
             }
             Switch(
                 checked = isLoopState,
                 onCheckedChange = { isLoopState = it },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = NeonCyan,
+                    checkedTrackColor = NeonCyan.copy(alpha = 0.5f),
+                    uncheckedThumbColor = CyberMuted,
+                    uncheckedTrackColor = CyberBorder
+                ),
                 modifier = Modifier.testTag("looping_switch")
             )
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = CyberBorder)
 
         // Auto night screen brightness
         val requiresWriteSettingsDialog = remember { mutableStateOf(false) }
@@ -803,8 +929,8 @@ fun VideoEditorScreen(
         if (requiresWriteSettingsDialog.value) {
             AlertDialog(
                 onDismissRequest = { requiresWriteSettingsDialog.value = false },
-                title = { Text("Требуется разрешение изменения настроек") },
-                text = { Text("Для управления системным уровнем яркости ночью требуется предоставить соответствующее разрешение в системном окне.") },
+                title = { Text("Требуется разрешение изменения настроек", color = Color.White) },
+                text = { Text("Для управления системным уровнем яркости ночью требуется предоставить соответствующее разрешение в системном окне.", color = CyberMuted) },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -816,14 +942,16 @@ fun VideoEditorScreen(
                             context.startActivity(intent)
                         }
                     ) {
-                        Text("Перейти", fontWeight = FontWeight.Bold)
+                        Text("Перейти", fontWeight = FontWeight.Bold, color = NeonCyan)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { requiresWriteSettingsDialog.value = false }) {
-                        Text(stringResource(R.string.cancel))
+                        Text(stringResource(R.string.cancel), color = CyberMuted)
                     }
-                }
+                },
+                containerColor = CyberCard,
+                titleContentColor = Color.White
             )
         }
 
@@ -838,12 +966,13 @@ fun VideoEditorScreen(
                 Text(
                     text = stringResource(id = R.string.night_mode_title),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 14.sp,
+                    color = Color.White
                 )
                 Text(
                     text = stringResource(id = R.string.night_mode_desc),
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = CyberMuted
                 )
             }
             Switch(
@@ -855,6 +984,12 @@ fun VideoEditorScreen(
                         keyNightState = checked
                     }
                 },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = NeonCyan,
+                    checkedTrackColor = NeonCyan.copy(alpha = 0.5f),
+                    uncheckedThumbColor = CyberMuted,
+                    uncheckedTrackColor = CyberBorder
+                ),
                 modifier = Modifier.testTag("night_brightness_switch")
             )
         }
@@ -869,23 +1004,29 @@ fun VideoEditorScreen(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
                     .background(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        RoundedCornerShape(8.dp)
+                        CyberBorder.copy(alpha = 0.5f),
+                        RoundedCornerShape(12.dp)
                     )
-                    .padding(12.dp)
+                    .border(1.dp, CyberBorder, RoundedCornerShape(12.dp))
+                    .padding(14.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Степень затемнения:", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    Text("${(keyBrightnessFactor * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("Степень затемнения:", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                    Text("${(keyBrightnessFactor * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = NeonCyan)
                 }
 
                 Slider(
                     value = keyBrightnessFactor,
                     onValueChange = { keyBrightnessFactor = it },
                     valueRange = 0.1f..0.8f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = NeonCyan,
+                        activeTrackColor = NeonCyan,
+                        inactiveTrackColor = CyberBorder
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1061,67 +1202,4 @@ private fun getFileName(context: Context, uri: Uri): String? {
         }
     }
     return result
-}
-
-class AspectRatioVideoView @JvmOverloads constructor(
-    context: Context,
-    attrs: android.util.AttributeSet? = null,
-    defStyleAttr: Int = 0
-) : android.widget.VideoView(context, attrs, defStyleAttr) {
-
-    private var mVideoWidth = 0
-    private var mVideoHeight = 0
-
-    fun setVideoSize(width: Int, height: Int) {
-        mVideoWidth = width
-        mVideoHeight = height
-        requestLayout()
-    }
-
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        var width = getDefaultSize(mVideoWidth, widthMeasureSpec)
-        var height = getDefaultSize(mVideoHeight, heightMeasureSpec)
-        if (mVideoWidth > 0 && mVideoHeight > 0) {
-            val widthSpecMode = MeasureSpec.getMode(widthMeasureSpec)
-            val widthSpecSize = MeasureSpec.getSize(widthMeasureSpec)
-            val heightSpecMode = MeasureSpec.getMode(heightMeasureSpec)
-            val heightSpecSize = MeasureSpec.getSize(heightMeasureSpec)
-
-            if (widthSpecMode == MeasureSpec.EXACTLY && heightSpecMode == MeasureSpec.EXACTLY) {
-                width = widthSpecSize
-                height = heightSpecSize
-                if (mVideoWidth * height < width * mVideoHeight) {
-                    width = height * mVideoWidth / mVideoHeight
-                } else if (mVideoWidth * height > width * mVideoHeight) {
-                    height = width * mVideoHeight / mVideoWidth
-                }
-            } else if (widthSpecMode == MeasureSpec.EXACTLY) {
-                width = widthSpecSize
-                height = width * mVideoHeight / mVideoWidth
-                if (heightSpecMode == MeasureSpec.AT_MOST && height > heightSpecSize) {
-                    height = heightSpecSize
-                    width = height * mVideoWidth / mVideoHeight
-                }
-            } else if (heightSpecMode == MeasureSpec.EXACTLY) {
-                height = heightSpecSize
-                width = height * mVideoWidth / mVideoHeight
-                if (widthSpecMode == MeasureSpec.AT_MOST && width > widthSpecSize) {
-                    width = widthSpecSize
-                    height = width * mVideoHeight / mVideoWidth
-                }
-            } else {
-                width = mVideoWidth
-                height = mVideoHeight
-                if (heightSpecMode == MeasureSpec.AT_MOST && height > heightSpecSize) {
-                    height = heightSpecSize
-                    width = height * mVideoWidth / mVideoHeight
-                }
-                if (widthSpecMode == MeasureSpec.AT_MOST && width > widthSpecSize) {
-                    width = widthSpecSize
-                    height = width * mVideoHeight / mVideoWidth
-                }
-            }
-        }
-        setMeasuredDimension(width, height)
-    }
 }
