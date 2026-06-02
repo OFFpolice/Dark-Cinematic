@@ -120,25 +120,13 @@ fun WallpaperAppScreen(
             Column {
                 CenterAlignedTopAppBar(
                     title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FilterFrames,
-                                contentDescription = null,
-                                tint = NeonCyan,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Live-Wallpaper",
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.5.sp,
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                        }
+                        Text(
+                            text = "Live Wallpaper",
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.5.sp,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge
+                        )
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                         containerColor = CyberBackground
