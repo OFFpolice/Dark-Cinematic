@@ -1,9 +1,16 @@
 package com.example
 
+import android.app.AlertDialog
 import android.app.WallpaperManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -12,1182 +19,1554 @@ import android.os.Looper
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.util.Log
-import android.media.MediaPlayer
-import android.widget.VideoView
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.*
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
+import androidx.core.content.ContextCompat
+import androidx.core.widget.NestedScrollView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.data.WallpaperItem
-import com.example.ui.theme.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Calendar
 import java.util.Locale
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            MyApplicationTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    WallpaperAppScreen()
-                }
-            }
-        }
-    }
-}
+class MainActivity : AppCompatActivity() {
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun WallpaperAppScreen(
-    viewModel: WallpaperViewModel = viewModel()
-) {
-    val context = LocalContext.current
-    val wallpapers by viewModel.wallpaperList.collectAsStateWithLifecycle()
-    val activeWallpaper by viewModel.activeWallpaper.collectAsStateWithLifecycle()
-    val editingItem by viewModel.editingItem.collectAsStateWithLifecycle()
-    val isProcessing by viewModel.isProcessing.collectAsStateWithLifecycle()
+    // Cyberpunk Theme Colors
+    private val NeonCyan = 0xFF00F0FF.toInt()
+    private val NeonPurple = 0xFF9D4EDD.toInt()
+    private val NeonPink = 0xFFFF007F.toInt()
+    private val NeonMint = 0xFF00FFCC.toInt()
+    private val CyberBackground = 0xFF0A0C10.toInt()
+    private val CyberCard = 0xFF141A26.toInt()
+    private val CyberBorder = 0xFF222B3D.toInt()
+    private val CyberOnCard = 0xFFE2E8F0.toInt()
+    private val CyberMuted = 0xFF94A3B8.toInt()
+    private val CyberActiveBg = 0xFF1E293B.toInt()
 
-    // Query permissions at runtime
-    val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    private lateinit var viewModel: WallpaperViewModel
+
+    // Root overlay container
+    private lateinit var rootContainer: FrameLayout
+    private lateinit var loadingOverlay: FrameLayout
+
+    // Main views
+    private lateinit var listView: View
+    private lateinit var editorView: View
+
+    // List view inner components
+    private lateinit var listEmptyState: LinearLayout
+    private lateinit var listScrollView: NestedScrollView
+    private lateinit var listContentContainer: LinearLayout
+    private lateinit var activeItemCard: FrameLayout
+    private lateinit var activeItemThumbnail: ImageView
+    private lateinit var activeItemTitle: TextView
+    private lateinit var activeItemStatus: TextView
+    private lateinit var activeItemActionBtn: Button
+    private lateinit var wallpaperItemsContainer: LinearLayout
+
+    // Editor view inner components
+    private var editorVideoView: AspectRatioVideoView? = null
+    private lateinit var editorPreviewContainer: FrameLayout
+    private lateinit var editorNightFilter: View
+    private lateinit var editorNightIndicator: TextView
+    private lateinit var editorTrimStartLabel: TextView
+    private lateinit var editorTrimEndLabel: TextView
+    private lateinit var editorTrimStartSeekBar: SeekBar
+    private lateinit var editorTrimEndSeekBar: SeekBar
+    private lateinit var editorLoopSwitch: Switch
+    private lateinit var editorNightSwitch: Switch
+    private lateinit var editorNightDimLayout: LinearLayout
+    private lateinit var editorNightDimPctLabel: TextView
+    private lateinit var editorNightDimSeekBar: SeekBar
+    private lateinit var editorCoverTimeSeekBar: SeekBar
+
+    // Permissions check
+    private val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         android.Manifest.permission.READ_MEDIA_VIDEO
     } else {
         android.Manifest.permission.READ_EXTERNAL_STORAGE
     }
 
-    var hasPermission by remember {
-        mutableStateOf(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.checkSelfPermission(android.Manifest.permission.READ_MEDIA_VIDEO) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            } else {
-                context.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            }
-        )
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
     ) { granted ->
-        hasPermission = granted
+        if (granted) {
+            videoPickerLauncher.launch("video/mp4")
+        } else {
+            Toast.makeText(this, "Доступ к файлам видео отклонен", Toast.LENGTH_SHORT).show()
+        }
     }
 
-    val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+    private val videoPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            val title = getFileName(context, uri) ?: "Видео обои"
-            viewModel.startEditingNewVideo(uri, context, title)
+            val title = getFileName(this, uri) ?: "Видео обои"
+            viewModel.startEditingNewVideo(uri, this, title)
         }
     }
 
-    Scaffold(
-        topBar = {
-            Column {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            text = "Live Wallpaper",
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.5.sp,
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = CyberBackground
-                    )
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(Color.Transparent, NeonCyan, NeonPurple, Color.Transparent)
-                            )
-                        )
-                )
-            }
-        },
-        floatingActionButton = {
-            if (editingItem == null) {
-                ExtendedFloatingActionButton(
-                    onClick = {
-                        if (hasPermission) {
-                            videoPickerLauncher.launch("video/mp4")
-                        } else {
-                            permissionLauncher.launch(storagePermission)
-                        }
-                    },
-                    icon = { Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black) },
-                    text = { Text(text = stringResource(id = R.string.add_to_library), fontWeight = FontWeight.Bold, color = Color.Black) },
-                    containerColor = NeonCyan,
-                    modifier = Modifier
-                        .testTag("add_wallpaper_fab")
-                        .border(
-                            BorderStroke(
-                                width = 1.5.dp,
-                                brush = Brush.linearGradient(listOf(Color.White, NeonCyan))
-                            ),
-                            shape = FloatingActionButtonDefaults.extendedFabShape
-                        )
-                )
-            }
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            CyberBackground,
-                            Color(0xFF0F1422)
-                        )
-                    )
-                )
-                .padding(innerPadding)
-        ) {
-            if (isProcessing) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f))
-                        .clickable(enabled = false) {},
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            }
-
-            AnimatedContent(
-                targetState = editingItem,
-                transitionSpec = {
-                    slideInHorizontally { width -> width } + fadeIn() togetherWith
-                            slideOutHorizontally { width -> -width } + fadeOut()
-                },
-                label = "ScreenStateTransition"
-            ) { item ->
-                if (item != null) {
-                    // Show Editor panel
-                    VideoEditorScreen(
-                        item = item,
-                        viewModel = viewModel,
-                        onBackPressed = { viewModel.cancelEditing() }
-                    )
-                } else {
-                    // Show Wallpaper list panel
-                    WallpaperListScreen(
-                        wallpapers = wallpapers,
-                        activeWallpaper = activeWallpaper,
-                        hasPermission = hasPermission,
-                        onRequestPermission = { permissionLauncher.launch(storagePermission) },
-                        onSelectVideo = { videoPickerLauncher.launch("video/mp4") },
-                        onEdit = { viewModel.startEditingExisting(it, context) },
-                        onDelete = { viewModel.deleteWallpaper(it) },
-                        onSetActive = {
-                            viewModel.setActive(it.id)
-                            launchWallpaperSelection(context)
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun WallpaperListScreen(
-    wallpapers: List<WallpaperItem>,
-    activeWallpaper: WallpaperItem?,
-    hasPermission: Boolean,
-    onRequestPermission: () -> Unit,
-    onSelectVideo: () -> Unit,
-    onEdit: (WallpaperItem) -> Unit,
-    onDelete: (WallpaperItem) -> Unit,
-    onSetActive: (WallpaperItem) -> Unit
-) {
-    if (!hasPermission) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .background(NeonPurple.copy(alpha = 0.15f), CircleShape)
-                    .border(2.dp, NeonPurple, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Security,
-                    contentDescription = null,
-                    tint = NeonPurple,
-                    modifier = Modifier.size(48.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = stringResource(id = R.string.permission_required),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = stringResource(id = R.string.permission_desc),
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = CyberMuted
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            Button(
-                onClick = onRequestPermission,
-                colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .testTag("permission_button")
-            ) {
-                Text("Предоставить доступ", fontWeight = FontWeight.Bold, color = Color.White)
-            }
-        }
-    } else if (wallpapers.isEmpty()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .background(NeonCyan.copy(alpha = 0.1f), CircleShape)
-                    .border(1.5.dp, Brush.sweepGradient(listOf(NeonCyan, NeonPurple, NeonCyan)), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.VideoLibrary,
-                    contentDescription = null,
-                    tint = NeonCyan,
-                    modifier = Modifier.size(56.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Библиотека пуста",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(id = R.string.empty_library_message),
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = CyberMuted
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            Button(
-                onClick = onSelectVideo,
-                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
-                modifier = Modifier
-                    .testTag("select_first_video_button")
-                    .height(50.dp)
-                    .border(BorderStroke(1.dp, Color.White), RoundedCornerShape(100))
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Добавить первое видео", fontWeight = FontWeight.Bold, color = Color.Black)
-            }
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Transparent),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Highlights Section
-            activeWallpaper?.let { active ->
-                item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    ) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "АКТИВНЫЙ ПРОФИЛЬ",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = NeonCyan,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                    ActiveWallpaperCard(active = active, onSetClick = { onSetActive(active) })
-                }
-            }
-
-            // Library header
-            item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                ) {
-                    Icon(Icons.Default.Wallpaper, contentDescription = null, tint = NeonPurple, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(id = R.string.library_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        letterSpacing = 0.5.sp
-                    )
-                }
-            }
-
-            items(wallpapers, key = { it.id }) { item ->
-                WallpaperItemRow(
-                    item = item,
-                    onEdit = { onEdit(item) },
-                    onDelete = { onDelete(item) },
-                    onSelect = { onSetActive(item) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ActiveWallpaperCard(
-    active: WallpaperItem,
-    onSetClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("active_wallpaper_card"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = CyberCard.copy(alpha = 0.75f)
-        ),
-        border = BorderStroke(1.5.dp, Brush.linearGradient(listOf(NeonCyan, NeonPurple)))
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(68.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.DarkGray)
-                    .border(1.dp, NeonCyan.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-            ) {
-                if (active.thumbnailUriStr != null) {
-                    AsyncImage(
-                        model = File(active.thumbnailUriStr),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.MovieFilter,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = active.title,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (active.isLooping) Icons.Default.Loop else Icons.Default.NavigateNext,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = NeonPurple
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (active.isLooping) "Зациклен" else "Один раз",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = CyberMuted
-                    )
-                    if (active.nightModeEnabled) {
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Icon(
-                            imageVector = Icons.Default.Nightlight,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = NeonCyan
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Автояркость",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = CyberMuted
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Button(
-                onClick = onSetClick,
-                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
-            ) {
-                Icon(Icons.Default.Wallpaper, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Black)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Запуск", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-            }
-        }
-    }
-}
-
-@Composable
-fun WallpaperItemRow(
-    item: WallpaperItem,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onSelect: () -> Unit
-) {
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(stringResource(R.string.confirm_delete), color = Color.White) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDelete()
-                        showDeleteConfirm = false
-                    }
-                ) {
-                    Text("Удалить", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text(stringResource(R.string.cancel), color = CyberMuted)
-                }
-            },
-            containerColor = CyberCard,
-            titleContentColor = Color.White
-        )
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onSelect)
-            .testTag("wallpaper_item_card_${item.id}"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (item.isActive) CyberActiveBg else CyberCard.copy(alpha = 0.65f)
-        ),
-        border = BorderStroke(
-            width = if (item.isActive) 1.5.dp else 1.dp,
-            color = if (item.isActive) NeonCyan else CyberBorder
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color.DarkGray)
-                    .border(1.dp, if (item.isActive) NeonCyan.copy(alpha = 0.5f) else Color.Transparent, RoundedCornerShape(10.dp))
-            ) {
-                if (item.thumbnailUriStr != null) {
-                    AsyncImage(
-                        model = File(item.thumbnailUriStr),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Movie,
-                        contentDescription = null,
-                        tint = Color.LightGray,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier
-                        .size(24.dp)
-                        .align(Alignment.Center)
-                        .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                        .padding(2.dp)
-                )
-
-                if (item.isActive) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(NeonCyan)
-                            .align(Alignment.BottomCenter)
-                            .padding(vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "АКТИВЕН",
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = item.title,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (item.isLooping) Icons.Default.Repeat else Icons.Default.ArrowForward,
-                        contentDescription = null,
-                        modifier = Modifier.size(13.dp),
-                        tint = NeonPurple
-                    )
-                    Text(
-                        text = if (item.isLooping) "Циклично" else "Одиночный",
-                        fontSize = 11.sp,
-                        color = CyberMuted
-                    )
-
-                    if (item.nightModeEnabled) {
-                        VerticalDivider(
-                            modifier = Modifier.height(10.dp),
-                            color = CyberBorder
-                        )
-                        Icon(
-                            imageVector = Icons.Default.DarkMode,
-                            contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                            tint = NeonCyan
-                        )
-                        Text(
-                            text = "Ночь",
-                            fontSize = 11.sp,
-                            color = CyberMuted
-                        )
-                    }
-                }
-
-                if (item.trimStartMs > 0L || item.trimEndMs > 0L) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Отрезок: ${formatTime(item.trimStartMs)} - ${formatTime(item.trimEndMs)}",
-                        fontSize = 11.sp,
-                        color = NeonMint,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onEdit,
-                    modifier = Modifier.testTag("edit_button_${item.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
-                        tint = NeonCyan
-                    )
-                }
-
-                IconButton(
-                    onClick = { showDeleteConfirm = true },
-                    modifier = Modifier.testTag("delete_button_${item.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalAnimationApi::class)
-@Composable
-fun VideoEditorScreen(
-    item: WallpaperItem,
-    viewModel: WallpaperViewModel,
-    onBackPressed: () -> Unit
-) {
-    val context = LocalContext.current
-    val videoDurationMs by viewModel.videoDurationMs.collectAsStateWithLifecycle()
-
-    // Seek states
-    var startPercentage by remember(item.id) {
-        val duration = if (videoDurationMs > 0) videoDurationMs.toFloat() else 10000f
-        mutableStateOf(item.trimStartMs.toFloat() / duration)
-    }
-    var endPercentage by remember(item.id) {
-        val duration = if (videoDurationMs > 0) videoDurationMs.toFloat() else 10000f
-        val calculatedEnd = if (item.trimEndMs > 0) item.trimEndMs.toFloat() else duration
-        mutableStateOf(calculatedEnd / duration)
-    }
-
-    // Cover extraction seeker index
-    var coverTimeMs by remember { mutableStateOf(item.trimStartMs) }
-
-    val durationMs = if (videoDurationMs > 0) videoDurationMs else 1L
-    val startMsChecked = (startPercentage * durationMs).toLong().coerceIn(0L, durationMs)
-    val endMsChecked = (endPercentage * durationMs).toLong().coerceIn(startMsChecked, durationMs)
-
-    // Sync back to VM when calculations shift
-    LaunchedEffect(startMsChecked, endMsChecked) {
-        viewModel.updateEditingTrim(startMsChecked, endMsChecked)
-        coverTimeMs = coverTimeMs.coerceIn(startMsChecked, endMsChecked)
-    }
-
-    var isLoopState by remember(item.id) { mutableStateOf(item.isLooping) }
-    var keyNightState by remember(item.id) { mutableStateOf(item.nightModeEnabled) }
-    var keyBrightnessFactor by remember(item.id) { mutableStateOf(item.nightBrightnessReduction) }
-
-    LaunchedEffect(isLoopState, keyNightState, keyBrightnessFactor) {
-        viewModel.updateEditingOptions(isLoopState, keyNightState, keyBrightnessFactor)
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .background(Color.Transparent)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Upper Navigation row
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBackPressed) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = Color.White)
-            }
-            Text(
-                text = stringResource(R.string.edit_wallpaper),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Button(
-                onClick = {
-                    viewModel.saveEditingItem()
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .testTag("save_wallpaper_button")
-                    .border(BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f)), RoundedCornerShape(12.dp))
-            ) {
-                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(stringResource(R.string.save), fontWeight = FontWeight.Bold, color = Color.White)
-            }
-        }
-
-        // Live player preview block
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, CyberBorder),
-            colors = CardDefaults.cardColors(containerColor = CyberCard)
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                VideoPreviewPlayer(
-                    videoUriStr = item.videoUriStr,
-                    startMs = startMsChecked,
-                    endMs = endMsChecked,
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                // Translucent dimming filter simulation to display night mode preview
-                if (keyNightState) {
-                    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-                    val isNight = hour >= 22 || hour < 6
-                    if (isNight) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = keyBrightnessFactor))
-                        ) {
-                            Text(
-                                "Демонстрация ночной автояркости активна",
-                                color = NeonCyan,
-                                fontSize = 10.sp,
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(8.dp)
-                                    .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
-                                    .border(0.5.dp, NeonCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Segment Trimming Sliders Section
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.align(Alignment.Start)
-        ) {
-            Icon(Icons.Default.ContentCut, contentDescription = null, tint = NeonPurple, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = stringResource(R.string.trim_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Старт: ${formatTime(startMsChecked)}", fontSize = 12.sp, color = NeonCyan, fontWeight = FontWeight.Medium)
-            Text("Стоп: ${formatTime(endMsChecked)}", fontSize = 12.sp, color = NeonPurple, fontWeight = FontWeight.Medium)
-        }
-
-        RangeSlider(
-            value = startPercentage..endPercentage,
-            onValueChange = { range ->
-                startPercentage = range.start
-                endPercentage = range.endInclusive
-            },
-            valueRange = 0f..1f,
-            colors = SliderDefaults.colors(
-                activeTrackColor = NeonCyan,
-                inactiveTrackColor = CyberBorder,
-                activeTickColor = NeonCyan,
-                inactiveTickColor = CyberBorder,
-                thumbColor = NeonCyan
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
-                .testTag("trim_range_slider")
-        )
-
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = CyberBorder)
-
-        // Looping setup
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(id = R.string.loop_title),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = Color.White
-                )
-                Text(
-                    text = stringResource(id = R.string.loop_desc),
-                    fontSize = 11.sp,
-                    color = CyberMuted
-                )
-            }
-            Switch(
-                checked = isLoopState,
-                onCheckedChange = { isLoopState = it },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = NeonCyan,
-                    checkedTrackColor = NeonCyan.copy(alpha = 0.5f),
-                    uncheckedThumbColor = CyberMuted,
-                    uncheckedTrackColor = CyberBorder
-                ),
-                modifier = Modifier.testTag("looping_switch")
-            )
-        }
-
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = CyberBorder)
-
-        // Auto night screen brightness
-        val requiresWriteSettingsDialog = remember { mutableStateOf(false) }
-
-        if (requiresWriteSettingsDialog.value) {
-            AlertDialog(
-                onDismissRequest = { requiresWriteSettingsDialog.value = false },
-                title = { Text("Требуется разрешение изменения настроек", color = Color.White) },
-                text = { Text("Для управления системным уровнем яркости ночью требуется предоставить соответствующее разрешение в системном окне.", color = CyberMuted) },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            requiresWriteSettingsDialog.value = false
-                            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
-                                data = Uri.parse("package:${context.packageName}")
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            }
-                            context.startActivity(intent)
-                        }
-                    ) {
-                        Text("Перейти", fontWeight = FontWeight.Bold, color = NeonCyan)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { requiresWriteSettingsDialog.value = false }) {
-                        Text(stringResource(R.string.cancel), color = CyberMuted)
-                    }
-                },
-                containerColor = CyberCard,
-                titleContentColor = Color.White
-            )
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(id = R.string.night_mode_title),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = Color.White
-                )
-                Text(
-                    text = stringResource(id = R.string.night_mode_desc),
-                    fontSize = 11.sp,
-                    color = CyberMuted
-                )
-            }
-            Switch(
-                checked = keyNightState,
-                onCheckedChange = { checked ->
-                    if (checked && !Settings.System.canWrite(context)) {
-                        requiresWriteSettingsDialog.value = true
-                    } else {
-                        keyNightState = checked
-                    }
-                },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = NeonCyan,
-                    checkedTrackColor = NeonCyan.copy(alpha = 0.5f),
-                    uncheckedThumbColor = CyberMuted,
-                    uncheckedTrackColor = CyberBorder
-                ),
-                modifier = Modifier.testTag("night_brightness_switch")
-            )
-        }
-
-        AnimatedVisibility(
-            visible = keyNightState,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .background(
-                        CyberBorder.copy(alpha = 0.5f),
-                        RoundedCornerShape(12.dp)
-                    )
-                    .border(1.dp, CyberBorder, RoundedCornerShape(12.dp))
-                    .padding(14.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Степень затемнения:", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color.White)
-                    Text("${(keyBrightnessFactor * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = NeonCyan)
-                }
-
-                Slider(
-                    value = keyBrightnessFactor,
-                    onValueChange = { keyBrightnessFactor = it },
-                    valueRange = 0.1f..0.8f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = NeonCyan,
-                        activeTrackColor = NeonCyan,
-                        inactiveTrackColor = CyberBorder
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(48.dp))
-    }
-}
-
-@Composable
-fun VideoPreviewPlayer(
-    videoUriStr: String,
-    startMs: Long,
-    endMs: Long,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    var videoView: AspectRatioVideoView? = null
-
-    val handler = remember { Handler(Looper.getMainLooper()) }
-    val checkRunnable = remember(videoUriStr, startMs, endMs) {
-        object : Runnable {
-            override fun run() {
-                val view = videoView ?: return
-                try {
-                    val pos = view.currentPosition
-                    if (endMs > 0 && pos >= endMs) {
-                        view.seekTo(startMs.toInt())
-                        if (!view.isPlaying) {
-                            view.start()
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("VideoPreviewPlayer", "Error checking playback position", e)
-                }
-                handler.postDelayed(this, 150)
-            }
-        }
-    }
-
-    DisposableEffect(videoUriStr, startMs, endMs) {
-        handler.post(checkRunnable)
-        onDispose {
-            handler.removeCallbacks(checkRunnable)
+    private val handler = Handler(Looper.getMainLooper())
+    private val previewPlaybackCheckRunnable = object : Runnable {
+        override fun run() {
+            val view = editorVideoView ?: return
+            val item = viewModel.editingItem.value ?: return
             try {
-                videoView?.stopPlayback()
+                if (view.isPlaying) {
+                    val pos = view.currentPosition.toLong()
+                    if (item.trimEndMs > 0L && pos >= item.trimEndMs) {
+                        view.seekTo(item.trimStartMs.toInt())
+                    }
+                }
             } catch (e: Exception) {
-                // Ignore
+                Log.e("MainActivity", "Error checking preview play position", e)
+            }
+            handler.postDelayed(this, 150)
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // Initialize viewmodel
+        viewModel = ViewModelProvider(this)[WallpaperViewModel::class.java]
+
+        // Create programmatic master UI
+        buildMasterUI()
+        setContentView(rootContainer)
+
+        // Bind data state observers
+        bindStateObservers()
+    }
+
+    private fun bindStateObservers() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // Monitor wallpaper list
+                launch {
+                    viewModel.wallpaperList.collectLatest { list ->
+                        populateWallpaperList(list)
+                    }
+                }
+
+                // Monitor active wallpaper
+                launch {
+                    viewModel.activeWallpaper.collectLatest { active ->
+                        updateActiveWallpaperCard(active)
+                    }
+                }
+
+                // Monitor editor screens state changes
+                launch {
+                    viewModel.editingItem.collectLatest { item ->
+                        refreshScreenState(item)
+                    }
+                }
+
+                // Monitor background processing frames
+                launch {
+                    viewModel.isProcessing.collectLatest { processing ->
+                        loadingOverlay.visibility = if (processing) View.VISIBLE else View.GONE
+                    }
+                }
             }
         }
     }
 
-    Box(
-        modifier = modifier.clipToBounds(),
-        contentAlignment = Alignment.Center
-    ) {
-        AndroidView(
-            factory = { ctx ->
-                AspectRatioVideoView(ctx).apply {
-                    setOnErrorListener { _, _, _ ->
-                        true // Handle error internally, do not pop crash dialog
-                    }
-                    setOnPreparedListener { mp ->
-                        mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT)
-                        mp.setVolume(0f, 0f) // Wallpaper style (silenced preview)
-                        
-                        setVideoSize(mp.videoWidth, mp.videoHeight)
-                        
-                        val duration = mp.duration.toLong()
-                        val isFullyUntrimmed = startMs <= 100L && (endMs == 0L || endMs >= duration - 100L)
-                        mp.isLooping = isFullyUntrimmed
-
-                        try {
-                            seekTo(startMs.toInt())
-                            start()
-                        } catch (e: Exception) {
-                            Log.e("VideoPreviewPlayer", "Error preparing video view playback", e)
-                        }
-                    }
-                    setOnCompletionListener { mp ->
-                        try {
-                            seekTo(startMs.toInt())
-                            start()
-                        } catch (e: Exception) {
-                            Log.e("VideoPreviewPlayer", "Error looping in onCompletion", e)
-                        }
-                    }
-                    tag = videoUriStr
-                    if (videoUriStr.startsWith("content://")) {
-                        setVideoURI(Uri.parse(videoUriStr))
-                    } else {
-                        setVideoPath(videoUriStr)
-                    }
-                    videoView = this
-                }
-            },
-            update = { view ->
-                videoView = view
-                val lastSetPath = view.tag as? String
-                if (lastSetPath != videoUriStr) {
-                    view.tag = videoUriStr
-                    view.setVideoSize(0, 0)
-                    try {
-                        view.stopPlayback()
-                        if (videoUriStr.startsWith("content://")) {
-                            view.setVideoURI(Uri.parse(videoUriStr))
-                        } else {
-                            view.setVideoPath(videoUriStr)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("VideoPreviewPlayer", "Error updating VideoView URI", e)
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-    }
-}
-
-// Launches native system android live wallpaper picker dialog
-fun launchWallpaperSelection(context: Context) {
-    try {
-        val intent = Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).apply {
-            putExtra(
-                WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
-                ComponentName(context, VideoWallpaperService::class.java)
+    private fun buildMasterUI() {
+        rootContainer = FrameLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
             )
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            setBackgroundColor(CyberBackground)
         }
-        context.startActivity(intent)
-    } catch (e: Exception) {
-        // Fallback picker intent for older or customized Android systems
+
+        // 1. Build List Screen view
+        listView = buildListScreen()
+        rootContainer.addView(listView)
+
+        // 2. Build Editor Screen view
+        editorView = buildEditorScreen()
+        rootContainer.addView(editorView)
+
+        // 3. Build Loading Overlay
+        loadingOverlay = FrameLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            setBackgroundColor(Color.argb(130, 0, 0, 0))
+            isClickable = true
+            isFocusable = true
+            visibility = View.GONE
+
+            val progressBar = ProgressBar(this@MainActivity).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    dp(64), dp(64)
+                ).apply {
+                    gravity = Gravity.CENTER
+                }
+                indeterminateTintList = ColorStateList.valueOf(NeonCyan)
+            }
+            addView(progressBar)
+        }
+        rootContainer.addView(loadingOverlay)
+    }
+
+    // LIST SCREEN
+    private fun buildListScreen(): View {
+        val layout = FrameLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        // Inner vertical LinearLayout scroll layout
+        val verticalContainer = LinearLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            orientation = LinearLayout.VERTICAL
+        }
+
+        // Top Header Tool bar
+        val headerBar = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(CyberBackground)
+            padding(16, 16, 16, 12)
+        }
+
+        val titleText = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            text = "Live Wallpaper"
+            textColor(Color.WHITE)
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            letterSpacing = 0.08f
+        }
+        headerBar.addView(titleText)
+
+        // Cyber Gradient bottom trim line under tool bar
+        val neonLine = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(2)
+            ).apply {
+                topMargin = dp(12)
+            }
+            background = GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                intArrayOf(Color.TRANSPARENT, NeonCyan, NeonPurple, Color.TRANSPARENT)
+            )
+        }
+        headerBar.addView(neonLine)
+        verticalContainer.addView(headerBar)
+
+        // Main content area scroll view
+        listScrollView = NestedScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+            isFillViewport = true
+        }
+
+        listContentContainer = LinearLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+            orientation = LinearLayout.VERTICAL
+            padding(16, 16, 16, 96) // generous bottom padding so items aren't obscured by FAB
+        }
+
+        // Active wallpaper section frame
+        activeItemCard = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(24)
+            }
+            visibility = View.GONE
+        }
+        listContentContainer.addView(activeItemCard)
+
+        // List item lists wrapper
+        wallpaperItemsContainer = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            orientation = LinearLayout.VERTICAL
+        }
+        listContentContainer.addView(wallpaperItemsContainer)
+
+        listScrollView.addView(listContentContainer)
+        verticalContainer.addView(listScrollView)
+
+        // Empty state layout inside root
+        listEmptyState = LinearLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.CENTER
+                leftMargin = dp(32)
+                rightMargin = dp(32)
+            }
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            visibility = View.GONE
+
+            val emptyIcon = ImageView(this@MainActivity).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(80), dp(80)).apply {
+                    bottomMargin = dp(16)
+                }
+                setImageResource(android.R.drawable.ic_menu_slideshow)
+                imageTintList = ColorStateList.valueOf(NeonCyan)
+            }
+            addView(emptyIcon)
+
+            val emptyTitle = TextView(this@MainActivity).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                text = "Библиотека пуста"
+                textColor(Color.WHITE)
+                textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+            }
+            addView(emptyTitle)
+
+            val emptyDesc = TextView(this@MainActivity).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = dp(8)
+                    bottomMargin = dp(24)
+                }
+                text = "Добавьте ваше первое видео в формате MP4!"
+                textColor(CyberMuted)
+                textSize = 13f
+                gravity = Gravity.CENTER
+            }
+            addView(emptyDesc)
+
+            val firstAddBtn = Button(this@MainActivity).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    dp(48)
+                )
+                text = "Добавить видео"
+                textColor(Color.BLACK)
+                typeface = Typeface.DEFAULT_BOLD
+                isAllCaps = false
+                background = createRoundedGradientDrawable(NeonCyan, NeonCyan, 24)
+                setPadding(dp(20), 0, dp(20), 0)
+                setOnClickListener {
+                    triggerVideoSelection()
+                }
+            }
+            addView(firstAddBtn)
+        }
+        layout.addView(verticalContainer)
+        layout.addView(listEmptyState)
+
+        // Beautiful Floating Add Button
+        val fab = Button(this).apply {
+            val params = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                dp(56)
+            ).apply {
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                bottomMargin = dp(24)
+            }
+            layoutParams = params
+            text = "+ Добавить видео"
+            textColor(Color.BLACK)
+            typeface = Typeface.DEFAULT_BOLD
+            isAllCaps = false
+            textSize = 15f
+            setPadding(dp(24), 0, dp(24), 0)
+            background = createRoundedGradientDrawable(NeonCyan, NeonCyan, 28)
+            setElevationValue(6)
+
+            setOnClickListener {
+                triggerVideoSelection()
+            }
+        }
+        layout.addView(fab)
+
+        return layout
+    }
+
+    private fun triggerVideoSelection() {
+        if (ContextCompat.checkSelfPermission(this, storagePermission) == PackageManager.PERMISSION_GRANTED) {
+            videoPickerLauncher.launch("video/mp4")
+        } else {
+            requestPermissionLauncher.launch(storagePermission)
+        }
+    }
+
+    private fun updateActiveWallpaperCard(active: WallpaperItem?) {
+        if (active == null) {
+            activeItemCard.visibility = View.GONE
+            return
+        }
+
+        activeItemCard.visibility = View.VISIBLE
+        activeItemCard.removeAllViews()
+
+        // Root FrameLayout serving as rounded border container
+        val outerBorder = FrameLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+            background = createRoundedGradientDrawable(CyberCard, 10, cornerDp = 16)
+            padding(1) // Simulate thin border line by nesting card inside other coloured background
+        }
+
+        // Apply a visual gradient border to active card
+        val doubleGradientBg = GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            intArrayOf(NeonCyan, NeonPurple)
+        ).apply {
+            cornerRadius = dp(16).toFloat()
+        }
+        outerBorder.background = doubleGradientBg
+
+        val cardContent = LinearLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+            orientation = LinearLayout.VERTICAL
+            background = createRoundedGradientDrawable(CyberCard, 0, cornerDp = 15)
+            padding(16, 16, 16, 16)
+        }
+
+        // Horizontal title row with status indicator
+        val titleRow = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(12)
+            }
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val starIndicator = TextView(this).apply {
+            text = "★   АКТИВНЫЙ ПРОФИЛЬ"
+            textColor(NeonCyan)
+            textSize = 11f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        titleRow.addView(starIndicator)
+        cardContent.addView(titleRow)
+
+        // Details Row
+        val detailsRow = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        activeItemThumbnail = ImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(68), dp(68))
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            background = createRoundedGradientDrawable(Color.DKGRAY, CyberBorder, 12, 1)
+        }
+        loadThumbnailAsync(activeItemThumbnail, active.thumbnailUriStr)
+        detailsRow.addView(activeItemThumbnail)
+
+        val activeTextInfoLayout = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                leftMargin = dp(14)
+                rightMargin = dp(8)
+            }
+            orientation = LinearLayout.VERTICAL
+        }
+
+        activeItemTitle = TextView(this).apply {
+            text = active.title
+            textColor(Color.WHITE)
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            maxLines = 1
+        }
+        activeTextInfoLayout.addView(activeItemTitle)
+
+        activeItemStatus = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(6)
+            }
+            val loopStr = if (active.isLooping) "Зациклен" else "Один раз"
+            val nightStr = if (active.nightModeEnabled) " • Ночная автояркость" else ""
+            text = "$loopStr$nightStr"
+            textColor(CyberMuted)
+            textSize = 11f
+        }
+        activeTextInfoLayout.addView(activeItemStatus)
+        detailsRow.addView(activeTextInfoLayout)
+
+        activeItemActionBtn = Button(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(40)
+            )
+            text = "Запуск "
+            textColor(Color.BLACK)
+            typeface = Typeface.DEFAULT_BOLD
+            isAllCaps = false
+            textSize = 13f
+            background = createRoundedGradientDrawable(NeonCyan, NeonCyan, 12)
+            setPadding(dp(16), 0, dp(16), 0)
+            setOnClickListener {
+                viewModel.setActive(active.id)
+                launchWallpaperSelection(this@MainActivity)
+            }
+        }
+        detailsRow.addView(activeItemActionBtn)
+
+        cardContent.addView(detailsRow)
+        outerBorder.addView(cardContent)
+        activeItemCard.addView(outerBorder)
+    }
+
+    private fun populateWallpaperList(list: List<WallpaperItem>) {
+        wallpaperItemsContainer.removeAllViews()
+
+        if (list.isEmpty()) {
+            listScrollView.visibility = View.GONE
+            listEmptyState.visibility = View.VISIBLE
+            return
+        }
+
+        listScrollView.visibility = View.VISIBLE
+        listEmptyState.visibility = View.GONE
+
+        // Library header item inside scrolling content
+        val sectionHeader = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(8)
+                bottomMargin = dp(12)
+            }
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val infoBullet = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(4), dp(16))
+            background = createRoundedGradientDrawable(NeonPurple, NeonPurple, 2)
+        }
+        sectionHeader.addView(infoBullet)
+
+        val headerLabel = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                leftMargin = dp(8)
+            }
+            text = "Библиотека обоев"
+            textColor(Color.WHITE)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        sectionHeader.addView(headerLabel)
+        wallpaperItemsContainer.addView(sectionHeader)
+
+        // Iterate list to append standard non-active rows
+        for (item in list) {
+            val cellFrame = FrameLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    bottomMargin = dp(12)
+                }
+                background = createRoundedGradientDrawable(CyberCard, CyberBorder, 16, 1)
+            }
+
+            val cardCellLayout = LinearLayout(this).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                )
+                orientation = LinearLayout.VERTICAL
+                padding(12, 12, 12, 12)
+            }
+
+            // Upper contents row
+            val upperRow = LinearLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    bottomMargin = dp(12)
+                }
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+
+            // Thumbnail
+            val thumbView = ImageView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(54), dp(54))
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                background = createRoundedGradientDrawable(Color.DKGRAY, CyberBorder, 10, 1)
+            }
+            loadThumbnailAsync(thumbView, item.thumbnailUriStr)
+            upperRow.addView(thumbView)
+
+            val textInfo = LinearLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    leftMargin = dp(12)
+                }
+                orientation = LinearLayout.VERTICAL
+            }
+
+            val itemTitle = TextView(this).apply {
+                text = item.title
+                textColor(Color.WHITE)
+                textSize = 15f
+                typeface = Typeface.DEFAULT_BOLD
+                maxLines = 1
+            }
+            textInfo.addView(itemTitle)
+
+            val itemMeta = TextView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = dp(4)
+                }
+                val loopText = if (item.isLooping) "Зациклен" else "Одиночный"
+                val nightText = if (item.nightModeEnabled) " + Ночь" else ""
+                text = "$loopText$nightText"
+                textColor(CyberMuted)
+                textSize = 11f
+            }
+            textInfo.addView(itemMeta)
+            upperRow.addView(textInfo)
+
+            // Select marker
+            if (item.id != viewModel.activeWallpaper.value?.id) {
+                val selectButton = Button(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        dp(36)
+                    )
+                    text = "Выбрать"
+                    textColor(Color.BLACK)
+                    typeface = Typeface.DEFAULT_BOLD
+                    isAllCaps = false
+                    textSize = 11f
+                    background = createRoundedGradientDrawable(NeonCyan, NeonCyan, 10)
+                    setPadding(dp(12), 0, dp(12), 0)
+                    setOnClickListener {
+                        viewModel.setActive(item.id)
+                        launchWallpaperSelection(this@MainActivity)
+                    }
+                }
+                upperRow.addView(selectButton)
+            } else {
+                val activeMarkerBadge = TextView(this).apply {
+                    padding(8, 4, 8, 4)
+                    text = "Активен"
+                    textColor(NeonMint)
+                    textSize = 11f
+                    typeface = Typeface.DEFAULT_BOLD
+                    background = createRoundedGradientDrawable(0x2200FFCC.toInt(), NeonMint, 6, 1)
+                }
+                upperRow.addView(activeMarkerBadge)
+            }
+            cardCellLayout.addView(upperRow)
+
+            // Bottom action bar controls row
+            val actionsRow = LinearLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.END
+            }
+
+            val editBtn = TextView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    rightMargin = dp(16)
+                }
+                text = " Изменить"
+                textColor(NeonCyan)
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+                isClickable = true
+                isFocusable = true
+                gravity = Gravity.CENTER
+                setOnClickListener {
+                    viewModel.startEditingExisting(item, this@MainActivity)
+                }
+            }
+            actionsRow.addView(editBtn)
+
+            val deleteBtn = TextView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                text = " Удалить"
+                textColor(0xFFFF4949.toInt()) // Red warning color
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+                isClickable = true
+                isFocusable = true
+                gravity = Gravity.CENTER
+                setOnClickListener {
+                    showDeleteConfirmationDialog(item)
+                }
+            }
+            actionsRow.addView(deleteBtn)
+
+            cardCellLayout.addView(actionsRow)
+            cellFrame.addView(cardCellLayout)
+            wallpaperItemsContainer.addView(cellFrame)
+        }
+    }
+
+    private fun showDeleteConfirmationDialog(item: WallpaperItem) {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.delete_wallpaper))
+            .setMessage(getString(R.string.confirm_delete))
+            .setPositiveButton("Удалить") { _, _ ->
+                viewModel.deleteWallpaper(item)
+            }
+            .setNegativeButton("Отмена", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(Color.RED)
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(Color.GRAY)
+        }
+        dialog.show()
+    }
+
+
+    // EDITOR SCREEN
+    private fun buildEditorScreen(): View {
+        val root = NestedScrollView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            isFillViewport = true
+            visibility = View.GONE
+        }
+
+        val outerContainer = LinearLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+            orientation = LinearLayout.VERTICAL
+            padding(16, 16, 16, 32)
+        }
+
+        // 1. Editor screen Header row
+        val headerRow = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(16)
+            }
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val backBtn = Button(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply {
+                rightMargin = dp(8)
+            }
+            text = "◀"
+            textColor(Color.WHITE)
+            textSize = 12f
+            background = createRoundedGradientDrawable(Color.TRANSPARENT, Color.TRANSPARENT, 22)
+            setOnClickListener {
+                viewModel.cancelEditing()
+            }
+        }
+        headerRow.addView(backBtn)
+
+        val headerTitle = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            text = "Настройка обоев"
+            textColor(Color.WHITE)
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        headerRow.addView(headerTitle)
+
+        val saveBtn = Button(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(38)
+            )
+            text = "Сохранить"
+            textColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            isAllCaps = false
+            textSize = 12f
+            background = createRoundedGradientDrawable(NeonPurple, NeonPurple, 10)
+            setPadding(dp(16), 0, dp(16), 0)
+            setOnClickListener {
+                viewModel.saveEditingItem()
+            }
+        }
+        headerRow.addView(saveBtn)
+        outerContainer.addView(headerRow)
+
+        // 2. Video Preview player card container
+        editorPreviewContainer = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(220)
+            ).apply {
+                bottomMargin = dp(20)
+            }
+            background = createRoundedGradientDrawable(CyberCard, CyberBorder, 16, 1)
+            clipToOutline = true
+        }
+
+        // Add dynamic transient dark overlay to preview auto-nightmode dim filters
+        editorNightFilter = View(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            setBackgroundColor(Color.BLACK)
+            alpha = 0f
+            visibility = View.GONE
+        }
+
+        editorNightIndicator = TextView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.END
+                topMargin = dp(8)
+                rightMargin = dp(8)
+            }
+            padding(8, 4, 8, 4)
+            text = "Демонстрация ночной автояркости активна"
+            textColor(NeonCyan)
+            textSize = 10f
+            typeface = Typeface.DEFAULT_BOLD
+            background = createRoundedGradientDrawable(0xCC000000.toInt(), NeonCyan, 6, 1)
+            visibility = View.GONE
+        }
+
+        outerContainer.addView(editorPreviewContainer)
+
+        // 3. Segment Trimming Header Section
+        val trimmingHeader = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(6)
+            }
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val cutIcon = TextView(this).apply {
+            text = "✂ "
+            textColor(NeonPurple)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        trimmingHeader.addView(cutIcon)
+
+        val trimTitle = TextView(this).apply {
+            text = "Границы обрезки видео"
+            textColor(Color.WHITE)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        trimmingHeader.addView(trimTitle)
+        outerContainer.addView(trimmingHeader)
+
+        // Trim values labels row
+        val trimLabelsRow = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(12)
+            }
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.START
+        }
+
+        editorTrimStartLabel = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            text = "Старт: 00:00"
+            textColor(NeonCyan)
+            textSize = 12f
+        }
+        trimLabelsRow.addView(editorTrimStartLabel)
+
+        editorTrimEndLabel = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            text = "Конец: 00:10"
+            textColor(NeonPurple)
+            textSize = 12f
+        }
+        trimLabelsRow.addView(editorTrimEndLabel)
+        outerContainer.addView(trimLabelsRow)
+
+        // Start duration seeker bar
+        val startSeekLabel = TextView(this).apply {
+            text = "Начало видео отрезка:"
+            textColor(CyberMuted)
+            textSize = 11f
+        }
+        outerContainer.addView(startSeekLabel)
+
+        editorTrimStartSeekBar = SeekBar(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(12)
+            }
+            progressTintList = ColorStateList.valueOf(NeonCyan)
+            thumbTintList = ColorStateList.valueOf(NeonCyan)
+
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        val duration = viewModel.videoDurationMs.value
+                        val newStart = (progress.toFloat() / 100f * duration).toLong()
+                        val currentEnd = (editorTrimEndSeekBar.progress.toFloat() / 100f * duration).toLong()
+
+                        if (newStart >= currentEnd) {
+                            val boundedStart = currentEnd - 500L
+                            val restrictedStart = if (boundedStart < 0) 0L else boundedStart
+                            val newProgress = (restrictedStart.toFloat() / duration * 100f).toInt()
+                            progressTintList = ColorStateList.valueOf(NeonCyan)
+                            seekBar?.progress = newProgress
+                            viewModel.updateEditingTrim(restrictedStart, currentEnd)
+                            editorVideoView?.seekTo(restrictedStart.toInt())
+                        } else {
+                            viewModel.updateEditingTrim(newStart, currentEnd)
+                            editorVideoView?.seekTo(newStart.toInt())
+                        }
+                    }
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
+        }
+        outerContainer.addView(editorTrimStartSeekBar)
+
+        // End duration seeker bar
+        val endSeekLabel = TextView(this).apply {
+            text = "Конец видео отрезка:"
+            textColor(CyberMuted)
+            textSize = 11f
+        }
+        outerContainer.addView(endSeekLabel)
+
+        editorTrimEndSeekBar = SeekBar(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(16)
+            }
+            progressTintList = ColorStateList.valueOf(NeonPurple)
+            thumbTintList = ColorStateList.valueOf(NeonPurple)
+
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        val duration = viewModel.videoDurationMs.value
+                        val newEnd = (progress.toFloat() / 100f * duration).toLong()
+                        val currentStart = (editorTrimStartSeekBar.progress.toFloat() / 100f * duration).toLong()
+
+                        if (newEnd <= currentStart) {
+                            val boundedEnd = currentStart + 500L
+                            val restrictedEnd = if (boundedEnd > duration) duration else boundedEnd
+                            val newProgress = (restrictedEnd.toFloat() / duration * 100f).toInt()
+                            seekBar?.progress = newProgress
+                            viewModel.updateEditingTrim(currentStart, restrictedEnd)
+                            editorVideoView?.seekTo(restrictedEnd.toInt())
+                        } else {
+                            viewModel.updateEditingTrim(currentStart, newEnd)
+                            editorVideoView?.seekTo(newEnd.toInt())
+                        }
+                    }
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
+        }
+        outerContainer.addView(editorTrimEndSeekBar)
+
+        // Separator Line
+        val sep1 = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
+                bottomMargin = dp(16)
+            }
+            setBackgroundColor(CyberBorder)
+        }
+        outerContainer.addView(sep1)
+
+        // 4. Looping switch row
+        val loopRow = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(16)
+            }
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val loopTexts = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            orientation = LinearLayout.VERTICAL
+        }
+
+        val loopTitle = TextView(this).apply {
+            text = "Зациклить воспроизведение"
+            textColor(Color.WHITE)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        loopTexts.addView(loopTitle)
+
+        val loopDesc = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(2)
+            }
+            text = "Повторять воспроизведение видео по кругу"
+            textColor(CyberMuted)
+            textSize = 11f
+        }
+        loopTexts.addView(loopDesc)
+        loopRow.addView(loopTexts)
+
+        editorLoopSwitch = Switch(this).apply {
+            thumbTintList = ColorStateList.valueOf(NeonCyan)
+            trackTintList = ColorStateList.valueOf(0x4400F0FF.toInt())
+            setOnCheckedChangeListener { _, isChecked ->
+                viewModel.updateEditingOptions(isChecked, editorNightSwitch.isChecked, (editorNightDimSeekBar.progress.toFloat() / 100f).coerceIn(0.1f, 0.8f))
+            }
+        }
+        loopRow.addView(editorLoopSwitch)
+        outerContainer.addView(loopRow)
+
+        // Separator
+        val sep2 = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
+                bottomMargin = dp(16)
+            }
+            setBackgroundColor(CyberBorder)
+        }
+        outerContainer.addView(sep2)
+
+        // 5. Auto Night Mode Switch Row
+        val nightRow = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(12)
+            }
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val nightTexts = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            orientation = LinearLayout.VERTICAL
+        }
+
+        val nightTitle = TextView(this).apply {
+            text = "Автояркость в ночное время"
+            textColor(Color.WHITE)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        nightTexts.addView(nightTitle)
+
+        val nightDesc = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(2)
+            }
+            text = "Снижает яркость экрана ночью (22:00 - 06:00)"
+            textColor(CyberMuted)
+            textSize = 11f
+        }
+        nightTexts.addView(nightDesc)
+        nightRow.addView(nightTexts)
+
+        editorNightSwitch = Switch(this).apply {
+            thumbTintList = ColorStateList.valueOf(NeonCyan)
+            trackTintList = ColorStateList.valueOf(0x4400F0FF.toInt())
+            setOnCheckedChangeListener { _, isChecked ->
+                if (isChecked && !Settings.System.canWrite(this@MainActivity)) {
+                    this.isChecked = false
+                    showWriteSettingsPermissionDialog()
+                } else {
+                    editorNightDimLayout.visibility = if (isChecked) View.VISIBLE else View.GONE
+                    viewModel.updateEditingOptions(editorLoopSwitch.isChecked, isChecked, (editorNightDimSeekBar.progress.toFloat() / 100f).coerceIn(0.1f, 0.8f))
+                    syncDynamicNightModeOverlay()
+                }
+            }
+        }
+        nightRow.addView(editorNightSwitch)
+        outerContainer.addView(nightRow)
+
+        // Dim percentage Slider child panel
+        editorNightDimLayout = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(16)
+            }
+            orientation = LinearLayout.VERTICAL
+            padding(12, 12, 12, 12)
+            background = createRoundedGradientDrawable(0x22222B3D.toInt(), CyberBorder, 12, 1)
+            visibility = View.GONE
+        }
+
+        val factorInfoRow = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(8)
+            }
+            orientation = LinearLayout.HORIZONTAL
+        }
+
+        val factorLabel = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            text = "Степень затемнения:"
+            textColor(Color.WHITE)
+            textSize = 12f
+        }
+        factorInfoRow.addView(factorLabel)
+
+        editorNightDimPctLabel = TextView(this).apply {
+            text = "50%"
+            textColor(NeonCyan)
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        factorInfoRow.addView(editorNightDimPctLabel)
+        editorNightDimLayout.addView(factorInfoRow)
+
+        editorNightDimSeekBar = SeekBar(this).apply {
+            max = 80
+            progress = 40 // corresponds to 40% (factor 0.4f)
+            progressTintList = ColorStateList.valueOf(NeonCyan)
+            thumbTintList = ColorStateList.valueOf(NeonCyan)
+
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    val actualVal = if (progress < 10) 10 else progress
+                    editorNightDimPctLabel.text = "$actualVal%"
+                    if (fromUser) {
+                        val factor = actualVal.toFloat() / 100f
+                        viewModel.updateEditingOptions(editorLoopSwitch.isChecked, editorNightSwitch.isChecked, factor)
+                        syncDynamicNightModeOverlay()
+                    }
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
+        }
+        editorNightDimLayout.addView(editorNightDimSeekBar)
+        outerContainer.addView(editorNightDimLayout)
+
+        // Separator
+        val sep3 = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
+                bottomMargin = dp(16)
+            }
+            setBackgroundColor(CyberBorder)
+        }
+        outerContainer.addView(sep3)
+
+        // 6. Cover Frame Selector panel
+        val coverTitle = TextView(this).apply {
+            text = "Выбор обложки (кадра)"
+            textColor(Color.WHITE)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        outerContainer.addView(coverTitle)
+
+        val coverDesc = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(2)
+                bottomMargin = dp(8)
+            }
+            text = "Выберите кадр видео для обложки в вашей библиотеке"
+            textColor(CyberMuted)
+            textSize = 11f
+        }
+        outerContainer.addView(coverDesc)
+
+        editorCoverTimeSeekBar = SeekBar(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(32)
+            }
+            progressTintList = ColorStateList.valueOf(NeonMint)
+            thumbTintList = ColorStateList.valueOf(NeonMint)
+
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        val startMs = (editorTrimStartSeekBar.progress.toFloat() / 100f * viewModel.videoDurationMs.value).toLong()
+                        val endMs = (editorTrimEndSeekBar.progress.toFloat() / 100f * viewModel.videoDurationMs.value).toLong()
+                        val selectTime = startMs + ((progress.toFloat() / 100f) * (endMs - startMs)).toLong()
+
+                        editorVideoView?.seekTo(selectTime.toInt())
+                        // Schedule extracting dynamic frame
+                        viewModel.changeEditingCoverFrame(this@MainActivity, selectTime)
+                    }
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
+        }
+        outerContainer.addView(editorCoverTimeSeekBar)
+
+        root.addView(outerContainer)
+        return root
+    }
+
+    private fun showWriteSettingsPermissionDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Требуется разрешение настроек")
+            .setMessage("Для настройки автояркости ночью приложению требуется разрешение на запись системных настроек.")
+            .setPositiveButton("Перейти") { _, _ ->
+                val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(intent)
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    private fun syncDynamicNightModeOverlay() {
+        val editing = viewModel.editingItem.value ?: return
+        if (editing.nightModeEnabled) {
+            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            val isNight = hour >= 22 || hour < 6
+            if (isNight) {
+                editorNightFilter.visibility = View.VISIBLE
+                editorNightFilter.alpha = editing.nightBrightnessReduction
+                editorNightIndicator.visibility = View.VISIBLE
+            } else {
+                editorNightFilter.visibility = View.GONE
+                editorNightIndicator.visibility = View.GONE
+            }
+        } else {
+            editorNightFilter.visibility = View.GONE
+            editorNightIndicator.visibility = View.GONE
+        }
+    }
+
+    private fun refreshScreenState(editingItem: WallpaperItem?) {
+        if (editingItem == null) {
+            listView.visibility = View.VISIBLE
+            editorView.visibility = View.GONE
+
+            // Release preview video view
+            handler.removeCallbacks(previewPlaybackCheckRunnable)
+            try {
+                editorVideoView?.stopPlayback()
+            } catch (ex: Exception) {}
+            editorVideoView = null
+            editorPreviewContainer.removeAllViews()
+        } else {
+            listView.visibility = View.GONE
+            editorView.visibility = View.VISIBLE
+
+            // Set up editor preview player
+            setupEditorPreviewPlayer(editingItem)
+
+            // Sync seek bars and toggles
+            bindEditorViewData(editingItem)
+        }
+    }
+
+    private fun setupEditorPreviewPlayer(item: WallpaperItem) {
+        editorPreviewContainer.removeAllViews()
+
+        editorVideoView = AspectRatioVideoView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            setOnErrorListener { _, _, _ -> true }
+            setOnPreparedListener { mp ->
+                mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT)
+                mp.setVolume(0f, 0f) // muted wallpaper style
+                setVideoSize(mp.videoWidth, mp.videoHeight)
+
+                val duration = mp.duration.toLong()
+                val isFullyUntrimmed = item.trimStartMs <= 100L && (item.trimEndMs == 0L || item.trimEndMs >= duration - 100L)
+                mp.isLooping = isFullyUntrimmed
+
+                try {
+                    seekTo(item.trimStartMs.toInt())
+                    start()
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error starting player", e)
+                }
+            }
+            setOnCompletionListener { mp ->
+                try {
+                    seekTo(item.trimStartMs.toInt())
+                    start()
+                } catch (ex: Exception) {}
+            }
+
+            if (item.videoUriStr.startsWith("content://")) {
+                setVideoURI(Uri.parse(item.videoUriStr))
+            } else {
+                setVideoPath(item.videoUriStr)
+            }
+        }
+
+        editorPreviewContainer.addView(editorVideoView)
+        editorPreviewContainer.addView(editorNightFilter)
+        editorPreviewContainer.addView(editorNightIndicator)
+
+        handler.post(previewPlaybackCheckRunnable)
+    }
+
+    private fun bindEditorViewData(item: WallpaperItem) {
+        val duration = if (viewModel.videoDurationMs.value > 0L) viewModel.videoDurationMs.value else 10000L
+
+        // Set text labels
+        editorTrimStartLabel.text = "Старт: ${formatTime(item.trimStartMs)}"
+        editorTrimEndLabel.text = "Конец: ${formatTime(item.trimEndMs)}"
+
+        // Set seek bars percentage progress
+        val startPct = (item.trimStartMs.toFloat() / duration * 100f).toInt().coerceIn(0, 100)
+        val endPct = (item.trimEndMs.toFloat() / duration * 100f).toInt().coerceIn(0, 100)
+
+        editorTrimStartSeekBar.progress = startPct
+        editorTrimEndSeekBar.progress = endPct
+
+        // Set switches
+        editorLoopSwitch.isChecked = item.isLooping
+        editorNightSwitch.isChecked = item.nightModeEnabled
+
+        // Set Night Dim controls
+        editorNightDimLayout.visibility = if (item.nightModeEnabled) View.VISIBLE else View.GONE
+        val factorPct = (item.nightBrightnessReduction * 100f).toInt().coerceIn(10, 80)
+        editorNightDimSeekBar.progress = factorPct
+        editorNightDimPctLabel.text = "$factorPct%"
+
+        // Display dim filter
+        syncDynamicNightModeOverlay()
+
+        // Sync cover frame selector progress
+        val span = (item.trimEndMs - item.trimStartMs).coerceAtLeast(1L)
+        // Assume default cover time is start time if uninitialized
+        val coverRelTime = (item.trimStartMs).coerceAtLeast(0L)
+        val coverProgress = (coverRelTime.toFloat() / span * 100f).toInt().coerceIn(0, 100)
+        editorCoverTimeSeekBar.progress = coverProgress
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        handler.removeCallbacksAndMessages(null)
         try {
-            val intent = Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER).apply {
+            editorVideoView?.stopPlayback()
+        } catch (ex: Exception) {}
+    }
+
+
+    // UTILITIES & DECORATION HELPERS
+    private fun dp(dpValue: Int): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dpValue.toFloat(),
+            resources.displayMetrics
+        ).toInt()
+    }
+
+    private fun View.padding(l: Int = 0, t: Int = 0, r: Int = 0, b: Int = 0) {
+        setPadding(dp(l), dp(t), dp(r), dp(b))
+    }
+
+    private fun TextView.textColor(c: Int) {
+        setTextColor(c)
+    }
+
+    private fun createRoundedGradientDrawable(solidColor: Int, strokeColor: Int, cornerDp: Int, strokeWidthDp: Int = 0): GradientDrawable {
+        return GradientDrawable().apply {
+            setColor(solidColor)
+            cornerRadius = dp(cornerDp).toFloat()
+            if (strokeWidthDp > 0) {
+                setStroke(dp(strokeWidthDp), strokeColor)
+            }
+        }
+    }
+
+    private fun View.setElevationValue(elevationDp: Int) {
+        elevation = dp(elevationDp).toFloat()
+    }
+
+    private fun loadThumbnailAsync(imageView: ImageView, path: String?) {
+        if (path == null) {
+            imageView.setImageResource(android.R.drawable.presence_video_online)
+            imageView.imageTintList = ColorStateList.valueOf(CyberMuted)
+            return
+        }
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val file = File(path)
+                if (file.exists()) {
+                    val bitmap = android.graphics.BitmapFactory.decodeFile(path)
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        imageView.setImageBitmap(bitmap)
+                        imageView.imageTintList = null
+                    }
+                } else {
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        imageView.setImageResource(android.R.drawable.presence_video_online)
+                        imageView.imageTintList = ColorStateList.valueOf(CyberMuted)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error loading thumbnail file", e)
+            }
+        }
+    }
+
+    private fun formatTime(ms: Long): String {
+        val totalSeconds = ms / 1000
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+    }
+
+    private fun getFileName(context: Context, uri: Uri): String? {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            try {
+                if (cursor != null && cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index != -1) {
+                        result = cursor.getString(index)
+                    }
+                }
+            } finally {
+                cursor?.close()
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/')
+            if (cut != null && cut != -1) {
+                result = result.substring(cut + 1)
+            }
+        }
+        return result
+    }
+
+    private fun launchWallpaperSelection(context: Context) {
+        try {
+            val intent = Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).apply {
+                putExtra(
+                    WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+                    ComponentName(context, VideoWallpaperService::class.java)
+                )
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             context.startActivity(intent)
-        } catch (ex: Exception) {
-            Log.e("MainActivity", "Failed to boot wallpaper picker intent", ex)
-        }
-    }
-}
-
-// Formats timestamp in ms into readable minutes:seconds
-private fun formatTime(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
-}
-
-// Queries filename safely from URI
-private fun getFileName(context: Context, uri: Uri): String? {
-    var result: String? = null
-    if (uri.scheme == "content") {
-        val cursor = context.contentResolver.query(uri, null, null, null, null)
-        try {
-            if (cursor != null && cursor.moveToFirst()) {
-                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (index != -1) {
-                    result = cursor.getString(index)
+        } catch (e: Exception) {
+            try {
+                val intent = Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
+                context.startActivity(intent)
+            } catch (ex: Exception) {
+                Log.e("MainActivity", "Failed to boot live wallpaper choice dialog", ex)
             }
-        } finally {
-            cursor?.close()
         }
     }
-    if (result == null) {
-        result = uri.path
-        val cut = result?.lastIndexOf('/')
-        if (cut != null && cut != -1) {
-            result = result.substring(cut + 1)
-        }
-    }
-    return result
 }
