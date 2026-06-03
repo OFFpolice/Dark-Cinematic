@@ -5,48 +5,82 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Top Slick Camcorder Handle -->
+    <!-- Film Reel 1 (Left Circle) -->
     <path
-        android:pathData="M35,35.5 h18 c2.2,0 4,1.8 4,4 v2.5 h-26 v-2.5 c0,-2.2 1.8,-4 4,-4 z"
-        android:fillColor="#00F0FF" />
-
-    <!-- Simple Modern Camera Body -->
-    <path
-        android:pathData="M27,42 h34 c3.3,0 6,2.7 6,6 v20 c0,3.3 -2.7,6 -6,6 h-34 c-3.3,0 -6,-2.7 -6,-6 v-20 c0,-3.3 2.7,-6 6,-6 z">
+        android:pathData="M39,30 a8,8 0 1,1 0,16 a8,8 0 1,1 0,-16">
         <gradient
-            android:startX="21"
-            android:startY="42"
-            android:endX="67"
-            android:endY="74"
+            android:startX="31"
+            android:startY="30"
+            android:endX="47"
+            android:endY="46"
+            android:type="linear">
+            <item android:offset="0" android:color="#00F0FF" />
+            <item android:offset="1" android:color="#9D4EDD" />
+        </gradient>
+    </path>
+    <!-- Reel 1 Inner Dot -->
+    <path
+        android:pathData="M39,35 a3,3 0 1,1 0,6 a3,3 0 1,1 0,-6"
+        android:fillColor="#0A0C10" />
+
+    <!-- Film Reel 2 (Right Circle) -->
+    <path
+        android:pathData="M55,30 a8,8 0 1,1 0,16 a8,8 0 1,1 0,-16">
+        <gradient
+            android:startX="47"
+            android:startY="30"
+            android:endX="63"
+            android:endY="46"
+            android:type="linear">
+            <item android:offset="0" android:color="#00F0FF" />
+            <item android:offset="1" android:color="#9D4EDD" />
+        </gradient>
+    </path>
+    <!-- Reel 2 Inner Dot -->
+    <path
+        android:pathData="M55,35 a3,3 0 1,1 0,6 a3,3 0 1,1 0,-6"
+        android:fillColor="#0A0C10" />
+
+    <!-- Main Camera Body -->
+    <path
+        android:pathData="M34,46 h26 c3.3,0 6,2.7 6,6 v20 c0,3.3 -2.7,6 -6,6 h-26 c-3.3,0 -6,-2.7 -6,-6 v-20 c0,-3.3 2.7,-6 6,-6 z">
+        <gradient
+            android:startX="28"
+            android:startY="46"
+            android:endX="66"
+            android:endY="78"
             android:type="linear">
             <item android:offset="0" android:color="#00F0FF" />
             <item android:offset="1" android:color="#9D4EDD" />
         </gradient>
     </path>
 
-    <!-- Compact Lens / Viewfinder Trapezoid -->
+    <!-- Custom lens/shutter line design elements on the camera body -->
     <path
-        android:pathData="M67,51 L83,43 A2,2 0 0 1 86,45 V63 A2,2 0 0 1 83,65 L67,57 Z">
+        android:pathData="M36,58 h20"
+        android:strokeColor="#0A0C10"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+
+    <!-- Camera Lens / Projector Cone -->
+    <path
+        android:pathData="M66,55 L82,47 A2,2 0 0 1 84,49 V69 A2,2 0 0 1 82,71 L66,63 Z">
         <gradient
-            android:startX="67"
-            android:startY="43"
-            android:endX="86"
-            android:endY="65"
+            android:startX="66"
+            android:startY="47"
+            android:endX="84"
+            android:endY="71"
             android:type="linear">
             <item android:offset="0" android:color="#00F0FF" />
             <item android:offset="1" android:color="#9D4EDD" />
         </gradient>
     </path>
 
-    <!-- Sleek Neon REC Indicator Dot -->
+    <!-- Light lines / Signal emission from Lens to give a "Wallpaper projection" live look -->
     <path
-        android:pathData="M32.5,49.5 a3,3 0 1,1 0,6 a3,3 0 1,1 0,-6"
-        android:fillColor="#FFFF007F" />
-
-    <!-- Sophisticated Lens Aperture Highlight -->
-    <path
-        android:pathData="M78,51 h3 v6 h-3 z"
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.4" />
+        android:pathData="M88,52 L91,50 M88,58 L92,58 M88,64 L91,66"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
 
 </vector>

@@ -1,47 +1,36 @@
 package com.example.ui.theme
 
-import android.app.Activity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
+private val CyberColorScheme = darkColorScheme(
     primary = NeonCyan,
     secondary = NeonPurple,
     tertiary = NeonPink,
     background = CyberBackground,
     surface = CyberCard,
-    onPrimary = CyberBackground,
-    onSecondary = CyberOnCard,
-    onTertiary = CyberOnCard,
     onBackground = CyberOnCard,
     onSurface = CyberOnCard,
+    surfaceVariant = CyberBorder,
+    onSurfaceVariant = CyberMuted,
+    primaryContainer = CyberActiveBg,
+    onPrimaryContainer = Color.White,
     secondaryContainer = NeonPurple.copy(alpha = 0.2f),
-    onSecondaryContainer = NeonCyan
+    onSecondaryContainer = NeonCyan,
+    error = Color(0xFFEF4444),
+    onError = Color.White
 )
 
 @Composable
-fun VideoWallpaperTheme(content: @Composable () -> Unit) {
-    val colorScheme = DarkColorScheme
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val context = view.context
-            if (context is Activity) {
-                val window = context.window
-                window.statusBarColor = CyberBackground.toArgb()
-                window.navigationBarColor = CyberBackground.toArgb()
-                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
-            }
-        }
-    }
-
+fun MyApplicationTheme(
+    darkTheme: Boolean = true, // Force dark theme for cinematic vibe
+    dynamicColor: Boolean = false, // Use our custom handcrafted colors
+    content: @Composable () -> Unit
+) {
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = CyberColorScheme,
         typography = Typography,
         content = content
     )

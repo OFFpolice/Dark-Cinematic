@@ -1,20 +1,21 @@
 package com.example
 
-import android.app.AlertDialog
 import android.app.WallpaperManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.util.Log
-import android.widget.Toast
+import android.media.MediaPlayer
+import android.widget.VideoView
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,285 +24,117 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.data.WallpaperItem
 import com.example.ui.theme.*
-import kotlinx.coroutines.delay
 import java.io.File
-import java.util.Calendar
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            MyApplicationTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    WallpaperAppScreen()
+                }
+            }
+        }
+    }
+}
 
-    private lateinit var viewModel: WallpaperViewModel
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WallpaperAppScreen(
+    viewModel: WallpaperViewModel = viewModel()
+) {
+    val context = LocalContext.current
+    val wallpapers by viewModel.wallpaperList.collectAsStateWithLifecycle()
+    val activeWallpaper by viewModel.activeWallpaper.collectAsStateWithLifecycle()
+    val editingItem by viewModel.editingItem.collectAsStateWithLifecycle()
+    val isProcessing by viewModel.isProcessing.collectAsStateWithLifecycle()
 
-    private val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    // Query permissions at runtime
+    val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         android.Manifest.permission.READ_MEDIA_VIDEO
     } else {
         android.Manifest.permission.READ_EXTERNAL_STORAGE
     }
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            videoPickerLauncher.launch("video/mp4")
-        } else {
-            Toast.makeText(this, "Доступ к файлам видео отклонен", Toast.LENGTH_SHORT).show()
-        }
+    var hasPermission by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.checkSelfPermission(android.Manifest.permission.READ_MEDIA_VIDEO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            } else {
+                context.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
+        )
     }
 
-    private val videoPickerLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent()
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasPermission = granted
+    }
+
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            val title = getFileName(this, uri) ?: "Видео обои"
-            viewModel.startEditingNewVideo(uri, this, title)
+            val title = getFileName(context, uri) ?: "Видео обои"
+            viewModel.startEditingNewVideo(uri, context, title)
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-
-        viewModel = ViewModelProvider(this)[WallpaperViewModel::class.java]
-
-        setContent {
-            VideoWallpaperTheme {
-                LiveWallpaperApp(
-                    viewModel = viewModel,
-                    onPickVideo = { triggerVideoSelection() },
-                    onRequestWriteSettings = { showWriteSettingsPermissionDialog() },
-                    onActivateLiveWallpaper = { launchWallpaperSelection(this) }
-                )
-            }
-        }
-    }
-
-    fun triggerVideoSelection() {
-        if (ContextCompat.checkSelfPermission(this, storagePermission) == PackageManager.PERMISSION_GRANTED) {
-            videoPickerLauncher.launch("video/mp4")
-        } else {
-            requestPermissionLauncher.launch(storagePermission)
-        }
-    }
-
-    private fun showWriteSettingsPermissionDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Требуется разрешение настроек")
-            .setMessage("Для настройки автояркости ночью приложению требуется разрешение на запись системных настроек.")
-            .setPositiveButton("Перейти") { _, _ ->
-                val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
-                    data = Uri.parse("package:$packageName")
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                startActivity(intent)
-            }
-            .setNegativeButton("Отмена", null)
-            .show()
-    }
-
-    private fun getFileName(context: Context, uri: Uri): String? {
-        var result: String? = null
-        if (uri.scheme == "content") {
-            val cursor = context.contentResolver.query(uri, null, null, null, null)
-            try {
-                if (cursor != null && cursor.moveToFirst()) {
-                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (index != -1) {
-                        result = cursor.getString(index)
-                    }
-                }
-            } finally {
-                cursor?.close()
-            }
-        }
-        if (result == null) {
-            result = uri.path
-            val cut = result?.lastIndexOf('/')
-            if (cut != null && cut != -1) {
-                result = result.substring(cut + 1)
-            }
-        }
-        return result
-    }
-
-    private fun launchWallpaperSelection(context: Context) {
-        try {
-            val intent = Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).apply {
-                putExtra(
-                    WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
-                    ComponentName(context, VideoWallpaperService::class.java)
-                )
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            try {
-                val intent = Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(intent)
-            } catch (ex: Exception) {
-                Log.e("MainActivity", "Failed to boot live wallpaper choice dialog", ex)
-            }
-        }
-    }
-}
-
-@Composable
-fun LiveWallpaperApp(
-    viewModel: WallpaperViewModel,
-    onPickVideo: () -> Unit,
-    onRequestWriteSettings: () -> Unit,
-    onActivateLiveWallpaper: () -> Unit
-) {
-    val wallpaperList by viewModel.wallpaperList.collectAsStateWithLifecycle()
-    val activeWallpaper by viewModel.activeWallpaper.collectAsStateWithLifecycle()
-    val editingItem by viewModel.editingItem.collectAsStateWithLifecycle()
-    val isProcessing by viewModel.isProcessing.collectAsStateWithLifecycle()
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(CyberBackground)
-    ) {
-        if (editingItem == null) {
-            // MAIN LIBRARY SCREEN
-            LibraryScreen(
-                wallpaperList = wallpaperList,
-                activeWallpaper = activeWallpaper,
-                onPickVideo = onPickVideo,
-                onEditItem = { item -> viewModel.startEditingExisting(item, viewModel.getApplication()) },
-                onActivateLiveWallpaper = onActivateLiveWallpaper,
-                onSetActive = { id -> viewModel.setActive(id) },
-                onDeleteItem = { item -> viewModel.deleteWallpaper(item) }
-            )
-        } else {
-            // EDITING PROFILE SCREEN
-            EditorScreen(
-                viewModel = viewModel,
-                onRequestWriteSettings = onRequestWriteSettings
-            )
-        }
-
-        // LOADING OVERLAY
-        if (isProcessing) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .clickable(enabled = false) {},
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = NeonCyan,
-                    modifier = Modifier.size(64.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun LibraryScreen(
-    wallpaperList: List<WallpaperItem>,
-    activeWallpaper: WallpaperItem?,
-    onPickVideo: () -> Unit,
-    onEditItem: (WallpaperItem) -> Unit,
-    onActivateLiveWallpaper: () -> Unit,
-    onSetActive: (Int) -> Unit,
-    onDeleteItem: (WallpaperItem) -> Unit
-) {
     Scaffold(
-        containerColor = CyberBackground,
-        contentWindowInsets = WindowInsets.safeDrawing,
-        bottomBar = {
-            // Glowing Custom Bottom Center FAB button for choosing videos
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(bottom = 24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Button(
-                    onClick = onPickVideo,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonCyan,
-                        contentColor = Color.Black
-                    ),
-                    shape = RoundedCornerShape(28.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp),
-                    modifier = Modifier
-                        .height(56.dp)
-                        .testTag("add_video_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Video Icon",
-                        modifier = Modifier.size(24.dp)
+        topBar = {
+            Column {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            text = "Live Wallpaper",
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.5.sp,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = CyberBackground
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "ДОБАВИТЬ ВИДЕО",
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            // Top Header Theme bar
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Live Wallpaper",
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.5.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    modifier = Modifier.padding(bottom = 8.dp)
                 )
-                
-                // Cyber Gradient bottom highlight line
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(0.9f)
+                        .fillMaxWidth()
                         .height(2.dp)
                         .background(
                             Brush.horizontalGradient(
@@ -310,96 +143,258 @@ fun LibraryScreen(
                         )
                 )
             }
-
-            if (wallpaperList.isEmpty() && activeWallpaper == null) {
-                // EMPTY STATE
-                Column(
+        },
+        floatingActionButton = {
+            if (editingItem == null) {
+                ExtendedFloatingActionButton(
+                    onClick = {
+                        if (hasPermission) {
+                            videoPickerLauncher.launch("video/mp4")
+                        } else {
+                            permissionLauncher.launch(storagePermission)
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black) },
+                    text = { Text(text = stringResource(id = R.string.add_to_library), fontWeight = FontWeight.Bold, color = Color.Black) },
+                    containerColor = NeonCyan,
+                    modifier = Modifier
+                        .testTag("add_wallpaper_fab")
+                        .border(
+                            BorderStroke(
+                                width = 1.5.dp,
+                                brush = Brush.linearGradient(listOf(Color.White, NeonCyan))
+                            ),
+                            shape = FloatingActionButtonDefaults.extendedFabShape
+                        )
+                )
+            }
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            CyberBackground,
+                            Color(0xFF0F1422)
+                        )
+                    )
+                )
+                .padding(innerPadding)
+        ) {
+            if (isProcessing) {
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 32.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .background(Color.Black.copy(alpha = 0.5f))
+                        .clickable(enabled = false) {},
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.VideoLibrary,
-                        contentDescription = "Empty Book Icon",
-                        tint = NeonCyan,
-                        modifier = Modifier
-                            .size(72.dp)
-                            .padding(bottom = 16.dp)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            AnimatedContent(
+                targetState = editingItem,
+                transitionSpec = {
+                    slideInHorizontally { width -> width } + fadeIn() togetherWith
+                            slideOutHorizontally { width -> -width } + fadeOut()
+                },
+                label = "ScreenStateTransition"
+            ) { item ->
+                if (item != null) {
+                    // Show Editor panel
+                    VideoEditorScreen(
+                        item = item,
+                        viewModel = viewModel,
+                        onBackPressed = { viewModel.cancelEditing() }
                     )
-                    Text(
-                        text = "Библиотека пуста",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
+                } else {
+                    // Show Wallpaper list panel
+                    WallpaperListScreen(
+                        wallpapers = wallpapers,
+                        activeWallpaper = activeWallpaper,
+                        hasPermission = hasPermission,
+                        onRequestPermission = { permissionLauncher.launch(storagePermission) },
+                        onSelectVideo = { videoPickerLauncher.launch("video/mp4") },
+                        onEdit = { viewModel.startEditingExisting(it, context) },
+                        onDelete = { viewModel.deleteWallpaper(it) },
+                        onSetActive = {
+                            viewModel.setActive(it.id)
+                            launchWallpaperSelection(context)
+                        }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Добавьте ваше первое видео в формате MP4!",
-                        color = CyberMuted,
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = onPickVideo,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = NeonCyan,
-                            contentColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(24.dp),
-                        modifier = Modifier.height(48.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WallpaperListScreen(
+    wallpapers: List<WallpaperItem>,
+    activeWallpaper: WallpaperItem?,
+    hasPermission: Boolean,
+    onRequestPermission: () -> Unit,
+    onSelectVideo: () -> Unit,
+    onEdit: (WallpaperItem) -> Unit,
+    onDelete: (WallpaperItem) -> Unit,
+    onSetActive: (WallpaperItem) -> Unit
+) {
+    if (!hasPermission) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .background(NeonPurple.copy(alpha = 0.15f), CircleShape)
+                    .border(2.dp, NeonPurple, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Security,
+                    contentDescription = null,
+                    tint = NeonPurple,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = stringResource(id = R.string.permission_required),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(id = R.string.permission_desc),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = CyberMuted
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(
+                onClick = onRequestPermission,
+                colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .testTag("permission_button")
+            ) {
+                Text("Предоставить доступ", fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        }
+    } else if (wallpapers.isEmpty()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .background(NeonCyan.copy(alpha = 0.1f), CircleShape)
+                    .border(1.5.dp, Brush.sweepGradient(listOf(NeonCyan, NeonPurple, NeonCyan)), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.VideoLibrary,
+                    contentDescription = null,
+                    tint = NeonCyan,
+                    modifier = Modifier.size(56.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Библиотека пуста",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(id = R.string.empty_library_message),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = CyberMuted
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(
+                onClick = onSelectVideo,
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                modifier = Modifier
+                    .testTag("select_first_video_button")
+                    .height(50.dp)
+                    .border(BorderStroke(1.dp, Color.White), RoundedCornerShape(100))
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Добавить первое видео", fontWeight = FontWeight.Bold, color = Color.Black)
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Transparent),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Highlights Section
+            activeWallpaper?.let { active ->
+                item {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     ) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Выбрать видео",
-                            fontWeight = FontWeight.Bold
+                            text = "АКТИВНЫЙ ПРОФИЛЬ",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = NeonCyan,
+                            letterSpacing = 1.sp
                         )
                     }
+                    ActiveWallpaperCard(active = active, onSetClick = { onSetActive(active) })
                 }
-            } else {
-                // SCROLLABLE LIST OF WALPAPERS
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+            }
+
+            // Library header
+            item {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 4.dp)
                 ) {
-                    // Active Profile Card
-                    if (activeWallpaper != null) {
-                        item {
-                            ActiveWallpaperCard(
-                                item = activeWallpaper,
-                                onActivateLiveWallpaper = onActivateLiveWallpaper,
-                                onEditItem = onEditItem
-                            )
-                        }
-                    }
-
-                    // Divider title
-                    if (wallpaperList.isNotEmpty()) {
-                        item {
-                            Text(
-                                text = "Библиотека обоев",
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                        }
-
-                        items(wallpaperList) { item ->
-                            LibraryItemRow(
-                                item = item,
-                                onSetActive = { onSetActive(item.id) },
-                                onEditItem = { onEditItem(item) },
-                                onDeleteItem = { onDeleteItem(item) }
-                            )
-                        }
-                    }
+                    Icon(Icons.Default.Wallpaper, contentDescription = null, tint = NeonPurple, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(id = R.string.library_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        letterSpacing = 0.5.sp
+                    )
                 }
+            }
+
+            items(wallpapers, key = { it.id }) { item ->
+                WallpaperItemRow(
+                    item = item,
+                    onEdit = { onEdit(item) },
+                    onDelete = { onDelete(item) },
+                    onSelect = { onSetActive(item) }
+                )
             }
         }
     }
@@ -407,845 +402,792 @@ fun LibraryScreen(
 
 @Composable
 fun ActiveWallpaperCard(
-    item: WallpaperItem,
-    onActivateLiveWallpaper: () -> Unit,
-    onEditItem: (WallpaperItem) -> Unit
+    active: WallpaperItem,
+    onSetClick: () -> Unit
 ) {
     Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("active_wallpaper_card"),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CyberCard),
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.5.dp,
-                brush = Brush.horizontalGradient(listOf(NeonCyan, NeonPurple)),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .testTag("active_wallpaper_card")
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = "Star active",
-                    tint = NeonCyan,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "АКТИВНЫЙ ПРОФИЛЬ",
-                    color = NeonCyan,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Rounded corner thumbnail preview
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(CyberBorder)
-                ) {
-                    if (item.thumbnailUriStr != null && File(item.thumbnailUriStr).exists()) {
-                        AsyncImage(
-                            model = File(item.thumbnailUriStr),
-                            contentDescription = "Active thumbnail",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Videocam,
-                                contentDescription = "Cam",
-                                tint = CyberMuted,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    }
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = item.title,
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "Диапазон: ${formatTime(item.trimStartMs)} - ${formatTime(item.trimEndMs)}",
-                        color = CyberMuted,
-                        fontSize = 11.sp
-                    )
-                    
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(top = 2.dp)
-                    ) {
-                        ProfileBadge(text = if (item.isLooping) "Цикл" else "Разово", color = NeonCyan)
-                        if (item.nightModeEnabled) {
-                            ProfileBadge(text = "Затемнение: ${(item.nightBrightnessReduction * 100).toInt()}%", color = NeonPurple)
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Button(
-                    onClick = onActivateLiveWallpaper,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonPurple,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp),
-                    modifier = Modifier
-                        .weight(1.2f)
-                        .height(36.dp)
-                ) {
-                    Text(
-                        text = "Активировать в ОС",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                OutlinedButton(
-                    onClick = { onEditItem(item) },
-                    border = BorderStroke(1.dp, CyberBorder),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = NeonCyan
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp),
-                    modifier = Modifier
-                        .weight(0.8f)
-                        .height(36.dp)
-                ) {
-                    Text(
-                        text = "Изменить",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun LibraryItemRow(
-    item: WallpaperItem,
-    onSetActive: () -> Unit,
-    onEditItem: () -> Unit,
-    onDeleteItem: () -> Unit
-) {
-    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
-
-    if (showDeleteConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmDialog = false },
-            title = { Text("Удалить обои") },
-            text = { Text("Вы уверены, что хотите окончательно удалить эти живые обои из библиотеки?") },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirmDialog = false }) {
-                    Text("Отмена", color = CyberMuted)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteConfirmDialog = false
-                    onDeleteItem()
-                }) {
-                    Text("Удалить", color = NeonPink, fontWeight = FontWeight.Bold)
-                }
-            }
-        )
-    }
-
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = CyberCard),
-        border = BorderStroke(1.dp, CyberBorder),
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("library_item_row_${item.id}")
+        colors = CardDefaults.cardColors(
+            containerColor = CyberCard.copy(alpha = 0.75f)
+        ),
+        border = BorderStroke(1.5.dp, Brush.linearGradient(listOf(NeonCyan, NeonPurple)))
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Thumbnail
             Box(
                 modifier = Modifier
                     .size(68.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(CyberBorder)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.DarkGray)
+                    .border(1.dp, NeonCyan.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
             ) {
-                if (item.thumbnailUriStr != null && File(item.thumbnailUriStr).exists()) {
+                if (active.thumbnailUriStr != null) {
                     AsyncImage(
-                        model = File(item.thumbnailUriStr),
-                        contentDescription = "Library thumbnail",
+                        model = File(active.thumbnailUriStr),
+                        contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Icon(
+                        Icons.Default.MovieFilter,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = active.title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (active.isLooping) Icons.Default.Loop else Icons.Default.NavigateNext,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = NeonPurple
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (active.isLooping) "Зациклен" else "Один раз",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CyberMuted
+                    )
+                    if (active.nightModeEnabled) {
+                        Spacer(modifier = Modifier.width(12.dp))
                         Icon(
-                            imageVector = Icons.Default.Videocam,
-                            contentDescription = "Video Cam",
-                            tint = CyberMuted,
-                            modifier = Modifier.size(28.dp)
+                            imageVector = Icons.Default.Nightlight,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = NeonCyan
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Автояркость",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CyberMuted
                         )
                     }
                 }
             }
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Button(
+                onClick = onSetClick,
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = item.title,
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    
-                    IconButton(
-                        onClick = { showDeleteConfirmDialog = true },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete Item",
-                            tint = NeonPink,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-
-                Text(
-                    text = "Отрезок: ${formatTime(item.trimStartMs)} - ${formatTime(item.trimEndMs)}",
-                    color = CyberMuted,
-                    fontSize = 11.sp
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        ProfileBadge(text = if (item.isLooping) "Цикл" else "Раз", color = NeonCyan)
-                        if (item.nightModeEnabled) {
-                            ProfileBadge(text = "Ночь", color = NeonPurple)
-                        }
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(
-                            onClick = onEditItem,
-                            modifier = Modifier
-                                .size(28.dp)
-                                .background(CyberBorder, RoundedCornerShape(6.dp))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit Profile",
-                                tint = NeonCyan,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-
-                        Button(
-                            onClick = onSetActive,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = NeonCyan,
-                                contentColor = Color.Black
-                            ),
-                            shape = RoundedCornerShape(6.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                            modifier = Modifier.height(28.dp)
-                        ) {
-                            Text(
-                                text = "Выбрать",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
+                Icon(Icons.Default.Wallpaper, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Black)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Запуск", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
             }
         }
     }
 }
 
 @Composable
-fun ProfileBadge(text: String, color: Color) {
-    Box(
-        modifier = Modifier
-            .background(color.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-            .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text = text,
-            color = color,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold
+fun WallpaperItemRow(
+    item: WallpaperItem,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onSelect: () -> Unit
+) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(R.string.confirm_delete), color = Color.White) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete()
+                        showDeleteConfirm = false
+                    }
+                ) {
+                    Text("Удалить", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.cancel), color = CyberMuted)
+                }
+            },
+            containerColor = CyberCard,
+            titleContentColor = Color.White
         )
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .testTag("wallpaper_item_card_${item.id}"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (item.isActive) CyberActiveBg else CyberCard.copy(alpha = 0.65f)
+        ),
+        border = BorderStroke(
+            width = if (item.isActive) 1.5.dp else 1.dp,
+            color = if (item.isActive) NeonCyan else CyberBorder
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.DarkGray)
+                    .border(1.dp, if (item.isActive) NeonCyan.copy(alpha = 0.5f) else Color.Transparent, RoundedCornerShape(10.dp))
+            ) {
+                if (item.thumbnailUriStr != null) {
+                    AsyncImage(
+                        model = File(item.thumbnailUriStr),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Movie,
+                        contentDescription = null,
+                        tint = Color.LightGray,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier
+                        .size(24.dp)
+                        .align(Alignment.Center)
+                        .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                        .padding(2.dp)
+                )
+
+                if (item.isActive) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(NeonCyan)
+                            .align(Alignment.BottomCenter)
+                            .padding(vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "АКТИВЕН",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = item.title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (item.isLooping) Icons.Default.Repeat else Icons.Default.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        tint = NeonPurple
+                    )
+                    Text(
+                        text = if (item.isLooping) "Циклично" else "Одиночный",
+                        fontSize = 11.sp,
+                        color = CyberMuted
+                    )
+
+                    if (item.nightModeEnabled) {
+                        VerticalDivider(
+                            modifier = Modifier.height(10.dp),
+                            color = CyberBorder
+                        )
+                        Icon(
+                            imageVector = Icons.Default.DarkMode,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = NeonCyan
+                        )
+                        Text(
+                            text = "Ночь",
+                            fontSize = 11.sp,
+                            color = CyberMuted
+                        )
+                    }
+                }
+
+                if (item.trimStartMs > 0L || item.trimEndMs > 0L) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Отрезок: ${formatTime(item.trimStartMs)} - ${formatTime(item.trimEndMs)}",
+                        fontSize = 11.sp,
+                        color = NeonMint,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.testTag("edit_button_${item.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = NeonCyan
+                    )
+                }
+
+                IconButton(
+                    onClick = { showDeleteConfirm = true },
+                    modifier = Modifier.testTag("delete_button_${item.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
     }
 }
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun EditorScreen(
+fun VideoEditorScreen(
+    item: WallpaperItem,
     viewModel: WallpaperViewModel,
-    onRequestWriteSettings: () -> Unit
+    onBackPressed: () -> Unit
 ) {
     val context = LocalContext.current
-    val editingItem by viewModel.editingItem.collectAsStateWithLifecycle()
     val videoDurationMs by viewModel.videoDurationMs.collectAsStateWithLifecycle()
 
-    val currentItem = editingItem ?: return
-    val totalDuration = if (videoDurationMs > 0L) videoDurationMs else 10000L
-
-    // Safe boundaries
-    val startProgress = (currentItem.trimStartMs.toFloat() / totalDuration).coerceIn(0f, 1f)
-    val endProgress = (currentItem.trimEndMs.toFloat() / totalDuration).coerceIn(0f, 1f)
-
-    // Layout Scrolling
-    val scrollState = rememberScrollState()
-
-    // Interactive playback seek ref
-    var systemVideoView: AspectRatioVideoView? by remember { mutableStateOf(null) }
-
-    // Synchronize play boundaries playback loop
-    LaunchedEffect(currentItem.trimStartMs, currentItem.trimEndMs) {
-        while (true) {
-            delay(150)
-            val view = systemVideoView ?: continue
-            try {
-                if (view.isPlaying) {
-                    val pos = view.currentPosition.toLong()
-                    if (currentItem.trimEndMs > 0L && pos >= currentItem.trimEndMs) {
-                        view.seekTo(currentItem.trimStartMs.toInt())
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("EditorScreen", "Playback looping error check", e)
-            }
-        }
+    // Seek states
+    var startPercentage by remember(item.id) {
+        val duration = if (videoDurationMs > 0) videoDurationMs.toFloat() else 10000f
+        mutableStateOf(item.trimStartMs.toFloat() / duration)
+    }
+    var endPercentage by remember(item.id) {
+        val duration = if (videoDurationMs > 0) videoDurationMs.toFloat() else 10000f
+        val calculatedEnd = if (item.trimEndMs > 0) item.trimEndMs.toFloat() else duration
+        mutableStateOf(calculatedEnd / duration)
     }
 
-    // Checking system local night hour
-    val isNightModeThemeActive = remember(currentItem.nightModeEnabled) {
-        if (currentItem.nightModeEnabled) {
-            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-            hour >= 22 || hour < 6
-        } else false
+    // Cover extraction seeker index
+    var coverTimeMs by remember { mutableStateOf(item.trimStartMs) }
+
+    val durationMs = if (videoDurationMs > 0) videoDurationMs else 1L
+    val startMsChecked = (startPercentage * durationMs).toLong().coerceIn(0L, durationMs)
+    val endMsChecked = (endPercentage * durationMs).toLong().coerceIn(startMsChecked, durationMs)
+
+    // Sync back to VM when calculations shift
+    LaunchedEffect(startMsChecked, endMsChecked) {
+        viewModel.updateEditingTrim(startMsChecked, endMsChecked)
+        coverTimeMs = coverTimeMs.coerceIn(startMsChecked, endMsChecked)
     }
 
-    Scaffold(
-        containerColor = CyberBackground,
-        contentWindowInsets = WindowInsets.safeDrawing,
-        topBar = {
-            // Elegant Editor Screen Top bar header
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = { viewModel.cancelEditing() },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cancel Editing",
-                            tint = NeonPink
-                        )
-                    }
+    var isLoopState by remember(item.id) { mutableStateOf(item.isLooping) }
+    var keyNightState by remember(item.id) { mutableStateOf(item.nightModeEnabled) }
+    var keyBrightnessFactor by remember(item.id) { mutableStateOf(item.nightBrightnessReduction) }
 
-                    Text(
-                        text = if (currentItem.id == 0) "Добавление обоев" else "Настройка профиля",
-                        color = Color.White,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    )
+    LaunchedEffect(isLoopState, keyNightState, keyBrightnessFactor) {
+        viewModel.updateEditingOptions(isLoopState, keyNightState, keyBrightnessFactor)
+    }
 
-                    IconButton(
-                        onClick = { viewModel.saveEditingItem() },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Save Wallpaper Settings",
-                            tint = NeonCyan
-                        )
-                    }
-                }
-                
-                // Cyber line divider
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                        .height(1.dp)
-                        .background(CyberBorder)
-                )
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(scrollState)
-                .padding(bottom = 32.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .background(Color.Transparent)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Upper Navigation row
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // PLAYER PREVIEW COMPONENT
-            Box(
+            IconButton(onClick = onBackPressed) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = Color.White)
+            }
+            Text(
+                text = stringResource(R.string.edit_wallpaper),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Button(
+                onClick = {
+                    viewModel.saveEditingItem()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, CyberBorder, RoundedCornerShape(12.dp))
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
+                    .testTag("save_wallpaper_button")
+                    .border(BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f)), RoundedCornerShape(12.dp))
             ) {
-                // Live Video Rendering
-                AndroidView(
-                    factory = { ctx ->
-                        AspectRatioVideoView(ctx).apply {
-                            setOnErrorListener { _, _, _ -> true }
-                            setOnPreparedListener { mp ->
-                                mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT)
-                                mp.setVolume(0f, 0f) // Wallpaper styled, silent
-                                setVideoSize(mp.videoWidth, mp.videoHeight)
-                                mp.isLooping = currentItem.trimStartMs <= 100L && (currentItem.trimEndMs == 0L || currentItem.trimEndMs >= mp.duration - 100)
-                                seekTo(currentItem.trimStartMs.toInt())
-                                start()
-                            }
-                            setOnCompletionListener { mp ->
-                                try {
-                                    seekTo(currentItem.trimStartMs.toInt())
-                                    start()
-                                } catch (ex: Exception) {}
-                            }
-                            if (currentItem.videoUriStr.startsWith("content://")) {
-                                setVideoURI(Uri.parse(currentItem.videoUriStr))
-                            } else {
-                                setVideoPath(currentItem.videoUriStr)
-                            }
-                        }.also {
-                            systemVideoView = it
-                        }
-                    },
+                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.save), fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        }
+
+        // Live player preview block
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, CyberBorder),
+            colors = CardDefaults.cardColors(containerColor = CyberCard)
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                VideoPreviewPlayer(
+                    videoUriStr = item.videoUriStr,
+                    startMs = startMsChecked,
+                    endMs = endMsChecked,
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Night mode dim simulation filter over player view
-                if (isNightModeThemeActive) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = currentItem.nightBrightnessReduction))
-                    )
-                    
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .background(NeonPurple.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "НОЧНОЙ РЕЖИМ",
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                // Translucent dimming filter simulation to display night mode preview
+                if (keyNightState) {
+                    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                    val isNight = hour >= 22 || hour < 6
+                    if (isNight) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = keyBrightnessFactor))
+                        ) {
+                            Text(
+                                "Демонстрация ночной автояркости активна",
+                                color = NeonCyan,
+                                fontSize = 10.sp,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                                    .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                                    .border(0.5.dp, NeonCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-            // SLIDERS & CONTROLS BOX CONTAINER
+        // Segment Trimming Sliders Section
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.align(Alignment.Start)
+        ) {
+            Icon(Icons.Default.ContentCut, contentDescription = null, tint = NeonPurple, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.trim_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Старт: ${formatTime(startMsChecked)}", fontSize = 12.sp, color = NeonCyan, fontWeight = FontWeight.Medium)
+            Text("Стоп: ${formatTime(endMsChecked)}", fontSize = 12.sp, color = NeonPurple, fontWeight = FontWeight.Medium)
+        }
+
+        RangeSlider(
+            value = startPercentage..endPercentage,
+            onValueChange = { range ->
+                startPercentage = range.start
+                endPercentage = range.endInclusive
+            },
+            valueRange = 0f..1f,
+            colors = SliderDefaults.colors(
+                activeTrackColor = NeonCyan,
+                inactiveTrackColor = CyberBorder,
+                activeTickColor = NeonCyan,
+                inactiveTickColor = CyberBorder,
+                thumbColor = NeonCyan
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .testTag("trim_range_slider")
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = CyberBorder)
+
+        // Looping setup
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(id = R.string.loop_title),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color.White
+                )
+                Text(
+                    text = stringResource(id = R.string.loop_desc),
+                    fontSize = 11.sp,
+                    color = CyberMuted
+                )
+            }
+            Switch(
+                checked = isLoopState,
+                onCheckedChange = { isLoopState = it },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = NeonCyan,
+                    checkedTrackColor = NeonCyan.copy(alpha = 0.5f),
+                    uncheckedThumbColor = CyberMuted,
+                    uncheckedTrackColor = CyberBorder
+                ),
+                modifier = Modifier.testTag("looping_switch")
+            )
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = CyberBorder)
+
+        // Auto night screen brightness
+        val requiresWriteSettingsDialog = remember { mutableStateOf(false) }
+
+        if (requiresWriteSettingsDialog.value) {
+            AlertDialog(
+                onDismissRequest = { requiresWriteSettingsDialog.value = false },
+                title = { Text("Требуется разрешение изменения настроек", color = Color.White) },
+                text = { Text("Для управления системным уровнем яркости ночью требуется предоставить соответствующее разрешение в системном окне.", color = CyberMuted) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            requiresWriteSettingsDialog.value = false
+                            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                                data = Uri.parse("package:${context.packageName}")
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            context.startActivity(intent)
+                        }
+                    ) {
+                        Text("Перейти", fontWeight = FontWeight.Bold, color = NeonCyan)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { requiresWriteSettingsDialog.value = false }) {
+                        Text(stringResource(R.string.cancel), color = CyberMuted)
+                    }
+                },
+                containerColor = CyberCard,
+                titleContentColor = Color.White
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(id = R.string.night_mode_title),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color.White
+                )
+                Text(
+                    text = stringResource(id = R.string.night_mode_desc),
+                    fontSize = 11.sp,
+                    color = CyberMuted
+                )
+            }
+            Switch(
+                checked = keyNightState,
+                onCheckedChange = { checked ->
+                    if (checked && !Settings.System.canWrite(context)) {
+                        requiresWriteSettingsDialog.value = true
+                    } else {
+                        keyNightState = checked
+                    }
+                },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = NeonCyan,
+                    checkedTrackColor = NeonCyan.copy(alpha = 0.5f),
+                    uncheckedThumbColor = CyberMuted,
+                    uncheckedTrackColor = CyberBorder
+                ),
+                modifier = Modifier.testTag("night_brightness_switch")
+            )
+        }
+
+        AnimatedVisibility(
+            visible = keyNightState,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(vertical = 8.dp)
+                    .background(
+                        CyberBorder.copy(alpha = 0.5f),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .border(1.dp, CyberBorder, RoundedCornerShape(12.dp))
+                    .padding(14.dp)
             ) {
-                // Trimming controls Card
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = CyberCard),
-                    border = BorderStroke(1.dp, CyberBorder),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = "Обрезка видео",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Выберите диапазон воспроизведения",
-                            color = CyberMuted,
-                            fontSize = 11.sp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Trim Start
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(text = "Начало", color = Color.White, fontSize = 12.sp)
-                            Text(
-                                text = formatTime(currentItem.trimStartMs),
-                                color = NeonCyan,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Slider(
-                            value = startProgress,
-                            onValueChange = { newVal ->
-                                val calculatedStart = (newVal * totalDuration).toLong().coerceAtMost(currentItem.trimEndMs - 500L)
-                                viewModel.updateEditingTrim(calculatedStart.coerceAtLeast(0L), currentItem.trimEndMs)
-                            },
-                            onValueChangeFinished = {
-                                systemVideoView?.seekTo(currentItem.trimStartMs.toInt())
-                            },
-                            colors = SliderDefaults.colors(
-                                activeTrackColor = NeonCyan,
-                                thumbColor = NeonCyan,
-                                inactiveTrackColor = CyberBorder
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Trim End
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(text = "Конец", color = Color.White, fontSize = 12.sp)
-                            Text(
-                                text = formatTime(currentItem.trimEndMs),
-                                color = NeonCyan,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Slider(
-                            value = endProgress,
-                            onValueChange = { newVal ->
-                                val calculatedEnd = (newVal * totalDuration).toLong().coerceAtLeast(currentItem.trimStartMs + 500L)
-                                viewModel.updateEditingTrim(currentItem.trimStartMs, calculatedEnd.coerceAtMost(totalDuration))
-                            },
-                            onValueChangeFinished = {
-                                systemVideoView?.seekTo(currentItem.trimStartMs.toInt())
-                            },
-                            colors = SliderDefaults.colors(
-                                activeTrackColor = NeonCyan,
-                                thumbColor = NeonCyan,
-                                inactiveTrackColor = CyberBorder
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-
-                // Options card (Loop & Night mode)
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = CyberCard),
-                    border = BorderStroke(1.dp, CyberBorder),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        // Looping options row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Зациклить воспроизведение",
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Повторять воспроизведение видео по кругу",
-                                    color = CyberMuted,
-                                    fontSize = 11.sp
-                                )
-                            }
-                            Switch(
-                                checked = currentItem.isLooping,
-                                onCheckedChange = { isChecked ->
-                                    viewModel.updateEditingOptions(
-                                        isChecked,
-                                        currentItem.nightModeEnabled,
-                                        currentItem.nightBrightnessReduction
-                                    )
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = NeonCyan,
-                                    checkedTrackColor = NeonCyan.copy(alpha = 0.3f),
-                                    uncheckedBorderColor = CyberBorder
-                                )
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(CyberBorder))
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Night dims options row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Автояркость в ночное время",
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Снижает яркость экрана ночью (22:00 - 06:00)",
-                                    color = CyberMuted,
-                                    fontSize = 11.sp
-                                )
-                            }
-                            Switch(
-                                checked = currentItem.nightModeEnabled,
-                                onCheckedChange = { isChecked ->
-                                    if (isChecked && !Settings.System.canWrite(context)) {
-                                        onRequestWriteSettings()
-                                    } else {
-                                        viewModel.updateEditingOptions(
-                                            currentItem.isLooping,
-                                            isChecked,
-                                            currentItem.nightBrightnessReduction
-                                        )
-                                    }
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = NeonCyan,
-                                    checkedTrackColor = NeonCyan.copy(alpha = 0.3f),
-                                    uncheckedBorderColor = CyberBorder
-                                )
-                            )
-                        }
-
-                        // Sliding factor controls layout
-                        AnimatedVisibility(
-                            visible = currentItem.nightModeEnabled,
-                            enter = expandVertically() + fadeIn(),
-                            exit = shrinkVertically() + fadeOut()
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 16.dp)
-                                    .background(CyberBackground.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                    .border(1.dp, CyberBorder, RoundedCornerShape(8.dp))
-                                    .padding(12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(text = "Степень затемнения:", color = Color.White, fontSize = 12.sp)
-                                    Text(
-                                        text = "${(currentItem.nightBrightnessReduction * 100).toInt()}%",
-                                        color = NeonCyan,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                Slider(
-                                    value = currentItem.nightBrightnessReduction,
-                                    valueRange = 0.1f..0.8f,
-                                    onValueChange = { newVal ->
-                                        viewModel.updateEditingOptions(currentItem.isLooping, true, newVal)
-                                    },
-                                    colors = SliderDefaults.colors(
-                                        activeTrackColor = NeonCyan,
-                                        thumbColor = NeonCyan,
-                                        inactiveTrackColor = CyberBorder
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Choose Cover Frame selector card
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = CyberCard),
-                    border = BorderStroke(1.dp, CyberBorder),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = "Выбор обложки (кадра)",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Выберите кадр видео для обложки в вашей библиотеке",
-                            color = CyberMuted,
-                            fontSize = 11.sp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        val trimSpan = (currentItem.trimEndMs - currentItem.trimStartMs).coerceAtLeast(1L)
-                        // Assume frame is set to start initially
-                        val currentRelTime = (currentItem.trimStartMs).coerceAtLeast(0L)
-                        val relativeProgress = ((currentRelTime - currentItem.trimStartMs).toFloat() / trimSpan).coerceIn(0f, 1f)
-
-                        Slider(
-                            value = relativeProgress,
-                            onValueChange = { valPct ->
-                                val selectMs = currentItem.trimStartMs + (valPct * trimSpan).toLong()
-                                systemVideoView?.seekTo(selectMs.toInt())
-                                viewModel.changeEditingCoverFrame(context, selectMs)
-                            },
-                            colors = SliderDefaults.colors(
-                                activeTrackColor = NeonMint,
-                                thumbColor = NeonMint,
-                                inactiveTrackColor = CyberBorder
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-
-                // Action Buttons Save/Cancel Column
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    OutlinedButton(
-                        onClick = { viewModel.cancelEditing() },
-                        border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.8f)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = NeonPink
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                    ) {
-                        Text(
-                            text = "Отмена",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text("Степень затемнения:", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                    Text("${(keyBrightnessFactor * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = NeonCyan)
+                }
 
-                    Button(
-                        onClick = { viewModel.saveEditingItem() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = NeonPurple,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1.2f)
-                            .height(48.dp)
-                    ) {
-                        Text(
-                            text = "Сохранить",
-                            fontWeight = FontWeight.Bold
-                        )
+                Slider(
+                    value = keyBrightnessFactor,
+                    onValueChange = { keyBrightnessFactor = it },
+                    valueRange = 0.1f..0.8f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = NeonCyan,
+                        activeTrackColor = NeonCyan,
+                        inactiveTrackColor = CyberBorder
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(48.dp))
+    }
+}
+
+@Composable
+fun VideoPreviewPlayer(
+    videoUriStr: String,
+    startMs: Long,
+    endMs: Long,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var videoView: AspectRatioVideoView? = null
+
+    val handler = remember { Handler(Looper.getMainLooper()) }
+    val checkRunnable = remember(videoUriStr, startMs, endMs) {
+        object : Runnable {
+            override fun run() {
+                val view = videoView ?: return
+                try {
+                    val pos = view.currentPosition
+                    if (endMs > 0 && pos >= endMs) {
+                        view.seekTo(startMs.toInt())
+                        if (!view.isPlaying) {
+                            view.start()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("VideoPreviewPlayer", "Error checking playback position", e)
+                }
+                handler.postDelayed(this, 150)
+            }
+        }
+    }
+
+    DisposableEffect(videoUriStr, startMs, endMs) {
+        handler.post(checkRunnable)
+        onDispose {
+            handler.removeCallbacks(checkRunnable)
+            try {
+                videoView?.stopPlayback()
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier.clipToBounds(),
+        contentAlignment = Alignment.Center
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                AspectRatioVideoView(ctx).apply {
+                    setOnErrorListener { _, _, _ ->
+                        true // Handle error internally, do not pop crash dialog
+                    }
+                    setOnPreparedListener { mp ->
+                        mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT)
+                        mp.setVolume(0f, 0f) // Wallpaper style (silenced preview)
+                        
+                        setVideoSize(mp.videoWidth, mp.videoHeight)
+                        
+                        val duration = mp.duration.toLong()
+                        val isFullyUntrimmed = startMs <= 100L && (endMs == 0L || endMs >= duration - 100L)
+                        mp.isLooping = isFullyUntrimmed
+
+                        try {
+                            seekTo(startMs.toInt())
+                            start()
+                        } catch (e: Exception) {
+                            Log.e("VideoPreviewPlayer", "Error preparing video view playback", e)
+                        }
+                    }
+                    setOnCompletionListener { mp ->
+                        try {
+                            seekTo(startMs.toInt())
+                            start()
+                        } catch (e: Exception) {
+                            Log.e("VideoPreviewPlayer", "Error looping in onCompletion", e)
+                        }
+                    }
+                    tag = videoUriStr
+                    if (videoUriStr.startsWith("content://")) {
+                        setVideoURI(Uri.parse(videoUriStr))
+                    } else {
+                        setVideoPath(videoUriStr)
+                    }
+                    videoView = this
+                }
+            },
+            update = { view ->
+                videoView = view
+                val lastSetPath = view.tag as? String
+                if (lastSetPath != videoUriStr) {
+                    view.tag = videoUriStr
+                    view.setVideoSize(0, 0)
+                    try {
+                        view.stopPlayback()
+                        if (videoUriStr.startsWith("content://")) {
+                            view.setVideoURI(Uri.parse(videoUriStr))
+                        } else {
+                            view.setVideoPath(videoUriStr)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("VideoPreviewPlayer", "Error updating VideoView URI", e)
                     }
                 }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
+// Launches native system android live wallpaper picker dialog
+fun launchWallpaperSelection(context: Context) {
+    try {
+        val intent = Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).apply {
+            putExtra(
+                WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+                ComponentName(context, VideoWallpaperService::class.java)
+            )
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        // Fallback picker intent for older or customized Android systems
+        try {
+            val intent = Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
+            context.startActivity(intent)
+        } catch (ex: Exception) {
+            Log.e("MainActivity", "Failed to boot wallpaper picker intent", ex)
         }
     }
 }
 
-// FORMAT TIME UTIL
+// Formats timestamp in ms into readable minutes:seconds
 private fun formatTime(ms: Long): String {
     val totalSeconds = ms / 1000
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+}
+
+// Queries filename safely from URI
+private fun getFileName(context: Context, uri: Uri): String? {
+    var result: String? = null
+    if (uri.scheme == "content") {
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        try {
+            if (cursor != null && cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index != -1) {
+                    result = cursor.getString(index)
+                }
+            }
+        } finally {
+            cursor?.close()
+        }
+    }
+    if (result == null) {
+        result = uri.path
+        val cut = result?.lastIndexOf('/')
+        if (cut != null && cut != -1) {
+            result = result.substring(cut + 1)
+        }
+    }
+    return result
 }
