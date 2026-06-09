@@ -21,12 +21,13 @@
     <string name="service_not_active">Чтобы применить живые обои, выберите \"Галерея Живых Обоев\" в открывшемся системном окне настроек.</string>
     
     <!-- About screen -->
+    <string name="about_app_name">Live Wallpaper</string>
     <string name="about_title">О приложении</string>
-    <string name="about_description">Это приложение работает как галерея вертикальных видео на вашем устройстве. Оно сканирует вашу медиатеку на наличие видеороликов в портретной ориентации и позволяет установить любое из них в качестве живых обоев в один клик.\n\nРазработано с использованием Material Components и Native Android Views.</string>
-    <string name="author_title">Автор и соцсети</string>
+    <string name="about_description">Это приложение работает как галерея вертикальных видео на вашем устройстве.\nПриложение сканирует вашу медиатеку на наличие видеороликов в портретной ориентации и позволяет установить любое из них а качестве живых обоев в несколько кликов.</string>
+    <string name="author_title">Полезные ссылки</string>
     <string name="author_handle">@OFFpolice</string>
     <string name="developer_info">Разработчик: OFFpolice</string>
-    <string name="app_version">Версия: 1.1.0-Native</string>
+    <string name="app_version">Версия: 1.0 • Android App</string>
     
     <!-- Settings screen -->
     <string name="settings_title">Конфигурация</string>

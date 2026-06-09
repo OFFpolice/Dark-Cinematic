@@ -21,12 +21,13 @@
     <string name="service_not_active">Щоб застосувати живі шпалери, виберіть \"Галерея Живих Шпалер\" у системному вікні налаштувань, що відкриється.</string>
     
     <!-- About screen -->
+    <string name="about_app_name">Live Wallpaper</string>
     <string name="about_title">Про додаток</string>
-    <string name="about_description">Цей додаток працює як галерея вертикальних відео на вашому пристрої. Він сканує медіатеку для пошуку портретних відео та дозволяє встановити будь-яке з них як живі шпалери в один дотик.\n\nРозроблено з використанням Material Components та Native Android Views.</string>
-    <string name="author_title">Автор та соцмережі</string>
+    <string name="about_description">Цей додаток працює як галерея вертикальних відео на вашому пристрої.\nДодаток сканує медіатеку для пошуку портретних відео та дозволяє встановити будь-яке з них як живі шпалери в кілька кліків.</string>
+    <string name="author_title">Корисні посилання</string>
     <string name="author_handle">@OFFpolice</string>
     <string name="developer_info">Розробник: OFFpolice</string>
-    <string name="app_version">Версія: 1.1.0-Native</string>
+    <string name="app_version">Версія: 1.0 • Android App</string>
     
     <!-- Settings screen -->
     <string name="settings_title">Конфігурація</string>
