@@ -14,11 +14,19 @@
         <item name="colorControlHighlight">@color/ripple_color</item>
 
         <!-- Status & System Navigation bar styling -->
-        <item name="android:statusBarColor">@color/colorBackground</item>
-        <item name="android:navigationBarColor">@color/colorBackground</item>
+        <item name="android:statusBarColor">@color/colorSurface</item>
+        <item name="android:navigationBarColor">@color/colorSurface</item>
         
         <!-- Light content switches -->
         <item name="android:windowLightStatusBar" tools:targetApi="m">@bool/is_light_theme</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">@bool/is_light_theme</item>
+    </style>
+
+    <!-- Sleek and bold Toolbar Title Text Style -->
+    <style name="ToolbarTitleTextAppearance" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/colorTextPrimary</item>
     </style>
 </resources>

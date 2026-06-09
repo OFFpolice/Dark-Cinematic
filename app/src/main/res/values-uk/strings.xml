@@ -8,8 +8,8 @@
     
     <!-- Custom Styled Toolbar Titles -->
     <string name="toolbar_gallery">𝓛𝓲𝓿𝓮 𝓦𝓪𝓵𝓵𝓹𝓪𝓹𝓮𝓻</string>
-    <string name="toolbar_about">𝗔𝗯𝗼𝘂𝘁</string>
-    <string name="toolbar_settings">𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀</string>
+    <string name="toolbar_about"><b>Про нас</b></string>
+    <string name="toolbar_settings"><b>Налаштування</b></string>
     
     <!-- Gallery Screen -->
     <string name="gallery_title">Вертикальні відео</string>
