@@ -40,8 +40,8 @@
                 android:src="@drawable/ic_gallery"
                 app:tint="@color/white"
                 android:layout_margin="12dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintLeft_toLeftOf="parent"
                 android:alpha="0.85"/>
 
             <!-- Gradient shade at bottom to ensure text readability -->

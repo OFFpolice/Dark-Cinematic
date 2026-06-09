@@ -3,7 +3,7 @@
     
     <!-- Navigation Tabs -->
     <string name="tab_gallery">Gallery</string>
-    <string name="tab_about">About Us</string>
+    <string name="tab_about">About</string>
     <string name="tab_settings">Settings</string>
     
     <!-- Custom Styled Toolbar Titles -->
