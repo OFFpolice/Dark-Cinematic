@@ -1,5 +1,5 @@
 {
-  "name": "Live Wallpaper",
+  "name": "Live Wallpaper Gallery",
   "description": "Установка MP4 видео в качестве живых обоев с низким энергопотреблением, обрезкой, автояркостью ночью и без растягивания видео.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

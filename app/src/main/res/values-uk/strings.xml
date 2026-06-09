@@ -1,0 +1,46 @@
+<resources>
+    <string name="app_name">Галерея Живих Шпалер</string>
+    
+    <!-- Navigation Tabs -->
+    <string name="tab_gallery">Галерея</string>
+    <string name="tab_about">Про нас</string>
+    <string name="tab_settings">Налаштування</string>
+    
+    <!-- Gallery Screen -->
+    <string name="gallery_title">Вертикальні відео</string>
+    <string name="no_videos_found">На пристрої не знайдено вертикальних відео</string>
+    <string name="videos_found_count">Знайдено вертикальних відео: %d</string>
+    <string name="permission_required_gallery">Потрібен доступ до сховища, щоб знайти вертикальні відео.</string>
+    <string name="grant_permission">Надати доступ</string>
+    
+    <!-- Wallpaper Set Dialog -->
+    <string name="dialog_set_wallpaper_title">Встановлення живих шпалер</string>
+    <string name="dialog_set_wallpaper_msg">Бажаєте встановити це вертикальне відео як живі шпалери на робочий екран?</string>
+    <string name="action_set">Встановити</string>
+    <string name="action_cancel">Скасувати</string>
+    <string name="service_not_active">Щоб застосувати живі шпалери, виберіть \"Галерея Живих Шпалер\" у системному вікні налаштувань, що відкриється.</string>
+    
+    <!-- About screen -->
+    <string name="about_title">Про додаток</string>
+    <string name="about_description">Цей додаток працює як галерея вертикальних відео на вашому пристрої. Він сканує медіатеку для пошуку портретних відео та дозволяє встановити будь-яке з них як живі шпалери в один дотик.\n\nРозроблено з використанням Material Components та Native Android Views.</string>
+    <string name="author_title">Автор та соцмережі</string>
+    <string name="author_handle">@OFFpolice</string>
+    <string name="developer_info">Розробник: OFFpolice</string>
+    <string name="app_version">Версія: 1.1.0-Native</string>
+    
+    <!-- Settings screen -->
+    <string name="settings_title">Конфігурація</string>
+    <string name="settings_language">Мова додатка</string>
+    <string name="settings_theme">Візуальна тема</string>
+    
+    <!-- Languages -->
+    <string name="lang_system">Системна мова</string>
+    <string name="lang_en">English (Англійська)</string>
+    <string name="lang_ru">Русский (Російська)</string>
+    <string name="lang_uk">Українська</string>
+    
+    <!-- Themes -->
+    <string name="theme_system">Системна тема</string>
+    <string name="theme_light">Світла тема</string>
+    <string name="theme_dark">Темна тема</string>
+</resources>

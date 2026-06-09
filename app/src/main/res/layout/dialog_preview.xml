@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:gravity="center_horizontal"
+    android:background="@color/colorSurface">
+
+    <TextView
+        android:id="@+id/dialog_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/dialog_set_wallpaper_title"
+        android:textColor="@color/colorTextPrimary"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Fixed size 9:16 card preview to prevent dialog stretching on small formats -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="200dp"
+        android:layout_height="355dp"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        app:strokeColor="@color/colorCardBorder"
+        app:strokeWidth="1.5dp"
+        app:cardBackgroundColor="@color/colorSurface">
+
+        <!-- Custom VideoView -->
+        <com.example.AspectRatioVideoView
+            android:id="@+id/dialog_video_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/dialog_set_wallpaper_msg"
+        android:textColor="@color/colorTextSecondary"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:layout_marginBottom="20dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btn_dialog_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/action_cancel"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/btn_dialog_set"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/action_set"
+            style="@style/Widget.Material3.Button"
+            android:backgroundTint="@color/primary"
+            android:textColor="@color/white"/>
+
+    </LinearLayout>
+
+</LinearLayout>

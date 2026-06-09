@@ -1,24 +1,46 @@
 <resources>
-    <string name="app_name">Live Wallpaper</string>
-    <string name="add_to_library">Добавить в библиотеку</string>
-    <string name="trim_title">Обрезка видео</string>
-    <string name="loop_title">Зациклить воспроизведение</string>
-    <string name="loop_desc">Повторять воспроизведение видео по кругу</string>
-    <string name="night_mode_title">Автояркость в ночное время</string>
-    <string name="night_mode_desc">Снижает яркость экрана/видео с 22:00 до 06:00 для защиты глаз и экономии энергии</string>
-    <string name="select_cover_title">Выбор обложки</string>
-    <string name="select_cover_desc">Выберите кадр видео в качестве превью</string>
-    <string name="library_title">Библиотека обоев</string>
-    <string name="empty_library_message">Библиотека пуста. Добавьте ваше первое видео в формате MP4!</string>
-    <string name="set_as_wallpaper_action">Установить как живые обои</string>
-    <string name="apply_wallpaper_success">Обои успешно подготовлены! Нажмите кнопку ниже для активации в системе.</string>
-    <string name="edit_wallpaper">Редактирование</string>
-    <string name="delete_wallpaper">Удалить</string>
-    <string name="confirm_delete">Вы уверены, что хотите удалить эти обои?</string>
-    <string name="cancel">Отмена</string>
-    <string name="save">Сохранить</string>
-    <string name="permission_required">Требуются разрешения</string>
-    <string name="permission_desc">Приложению необходим доступ к хранилищу для выбора видеофайлов.</string>
-    <string name="trim_start">Начало</string>
-    <string name="trim_end">Конец</string>
+    <string name="app_name">Live Wallpaper Gallery</string>
+    
+    <!-- Navigation Tabs -->
+    <string name="tab_gallery">Gallery</string>
+    <string name="tab_about">About Us</string>
+    <string name="tab_settings">Settings</string>
+    
+    <!-- Gallery Screen -->
+    <string name="gallery_title">Vertical Videos</string>
+    <string name="no_videos_found">No vertical videos found on your device</string>
+    <string name="videos_found_count">%d vertical videos found</string>
+    <string name="permission_required_gallery">Storage permission required to scan vertical videos.</string>
+    <string name="grant_permission">Grant Permission</string>
+    
+    <!-- Wallpaper Set Dialog -->
+    <string name="dialog_set_wallpaper_title">Set as Live Wallpaper</string>
+    <string name="dialog_set_wallpaper_msg">Do you want to set this vertical video as your live wallpaper?</string>
+    <string name="action_set">Set Wallpaper</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="service_not_active">To apply the live wallpaper successfully, please choose \"Live Wallpaper Gallery\" in the system picker that opens next.</string>
+    
+    <!-- About screen -->
+    <string name="about_title">About Application</string>
+    <string name="about_description">This application functions as a high-fidelity vertical video gallery. It scans your media store for portrait-oriented videos and allows you to set them as an immersive live wallpaper with a single tap.\n\nCrafted with modern Material Components and Native Android Views.</string>
+    <string name="author_title">Author &amp; Socials</string>
+    <string name="author_handle">@OFFpolice</string>
+    <string name="developer_info">Developer: OFFpolice</string>
+    <string name="app_version">Version: 1.1.0-Native</string>
+    
+    <!-- Settings screen -->
+    <string name="settings_title">Configuration</string>
+    <string name="settings_language">Application Language</string>
+    <string name="settings_theme">Visual Theme</string>
+    
+    <!-- Languages -->
+    <string name="lang_system">System Default</string>
+    <string name="lang_en">English</string>
+    <string name="lang_ru">Русский (Russian)</string>
+    <string name="lang_uk">Українська (Ukrainian)</string>
+    
+    <!-- Themes -->
+    <string name="theme_system">System Default</string>
+    <string name="theme_light">Light Theme</string>
+    <string name="theme_dark">Dark Theme</string>
 </resources>

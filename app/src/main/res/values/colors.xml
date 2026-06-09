@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
+    <!-- Brand colors -->
+    <color name="primary">#6366F1</color> <!-- Modern Indigo -->
+    <color name="primary_variant">#4F46E5</color>
+    <color name="colorSecondary">#10B981</color> <!-- Emerald Accent -->
+    <color name="colorOnSecondary">#FFFFFF</color>
+    
+    <!-- Theme mapping: Light Palette (Default) -->
+    <color name="colorBackground">#F1F5F9</color>
+    <color name="colorSurface">#FFFFFF</color>
+    <color name="colorTextPrimary">#0F172A</color>
+    <color name="colorTextSecondary">#475569</color>
+    <color name="colorCardBorder">#E2E8F0</color>
+
     <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="ripple_color">#206366F1</color>
+    <color name="shadow_color">#0F000000</color>
 </resources>
