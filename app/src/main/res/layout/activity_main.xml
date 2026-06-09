@@ -8,7 +8,17 @@
     android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
-    <!-- Top Toolbar with sleek style -->
+    <!-- Content Container (drawn first, taking full height so content can glide under top/bottom bars) -->
+    <FrameLayout
+        android:id="@+id/fragment_container"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <!-- Top Toolbar with sleek style (drawn on top) -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="0dp"
@@ -23,26 +33,7 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"/>
 
-    <View
-        android:id="@+id/toolbar_shadow"
-        android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:background="@color/colorCardBorder"
-        app:layout_constraintTop_toBottomOf="@id/toolbar"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"/>
-
-    <!-- Content Container -->
-    <FrameLayout
-        android:id="@+id/fragment_container"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintTop_toBottomOf="@id/toolbar_shadow"
-        app:layout_constraintBottom_toTopOf="@id/bottom_navigation"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent" />
-
-    <!-- Modern bottom navigation bar -->
+    <!-- Modern bottom navigation bar (drawn on top) -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"
         android:layout_width="0dp"
