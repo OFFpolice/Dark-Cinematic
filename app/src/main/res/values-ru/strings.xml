@@ -1,10 +1,15 @@
 <resources>
-    <string name="app_name">Галерея Живых Обоев</string>
+    <string name="app_name">Live Wallpaper</string>
     
     <!-- Navigation Tabs -->
     <string name="tab_gallery">Галерея</string>
     <string name="tab_about">О нас</string>
     <string name="tab_settings">Настройки</string>
+    
+    <!-- Custom Styled Toolbar Titles -->
+    <string name="toolbar_gallery">𝓛𝓲𝓿𝓮 𝓦𝓪𝓵𝓵𝓹𝓪𝓹𝓮𝓻</string>
+    <string name="toolbar_about">О нас</string>
+    <string name="toolbar_settings">Настройки</string>
     
     <!-- Gallery Screen -->
     <string name="gallery_title">Вертикальные видео</string>
@@ -18,7 +23,7 @@
     <string name="dialog_set_wallpaper_msg">Хотите установить это вертикальное видео в качестве живых обоев на рабочий экран?</string>
     <string name="action_set">Установить</string>
     <string name="action_cancel">Отмена</string>
-    <string name="service_not_active">Чтобы применить живые обои, выберите \"Галерея Живых Обоев\" в открывшемся системном окне настроек.</string>
+    <string name="service_not_active">Чтобы применить живые обои, выберите \"Live Wallpaper\" в открывшемся системном окне настроек.</string>
     
     <!-- About screen -->
     <string name="about_app_name">Live Wallpaper</string>

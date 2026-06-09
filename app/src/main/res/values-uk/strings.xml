@@ -1,10 +1,15 @@
 <resources>
-    <string name="app_name">Галерея Живих Шпалер</string>
+    <string name="app_name">Live Wallpaper</string>
     
     <!-- Navigation Tabs -->
     <string name="tab_gallery">Галерея</string>
     <string name="tab_about">Про нас</string>
     <string name="tab_settings">Налаштування</string>
+    
+    <!-- Custom Styled Toolbar Titles -->
+    <string name="toolbar_gallery">𝓛𝓲𝓿𝓮 𝓦𝓪𝓵𝓵𝓹𝓪𝓹𝓮𝓻</string>
+    <string name="toolbar_about">Про нас</string>
+    <string name="toolbar_settings">Налаштування</string>
     
     <!-- Gallery Screen -->
     <string name="gallery_title">Вертикальні відео</string>
@@ -18,7 +23,7 @@
     <string name="dialog_set_wallpaper_msg">Бажаєте встановити це вертикальне відео як живі шпалери на робочий екран?</string>
     <string name="action_set">Встановити</string>
     <string name="action_cancel">Скасувати</string>
-    <string name="service_not_active">Щоб застосувати живі шпалери, виберіть \"Галерея Живих Шпалер\" у системному вікні налаштувань, що відкриється.</string>
+    <string name="service_not_active">Щоб застосувати живі шпалери, виберіть \"Live Wallpaper\" у системному вікні налаштувань, що відкриється.</string>
     
     <!-- About screen -->
     <string name="about_app_name">Live Wallpaper</string>

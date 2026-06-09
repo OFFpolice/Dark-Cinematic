@@ -31,18 +31,34 @@ class MainActivity : AppCompatActivity() {
 
         // Load the initial Gallery fragment on clean app starts
         if (savedInstanceState == null) {
-            replaceFragment(GalleryFragment(), getString(R.string.tab_gallery))
+            replaceFragment(GalleryFragment(), getString(R.string.toolbar_gallery))
             binding.bottomNavigation.selectedItemId = R.id.nav_gallery
         }
+    }
+
+    override fun onPostCreate(savedInstanceState: Bundle?) {
+        super.onPostCreate(savedInstanceState)
+        syncToolbarTitle()
+    }
+
+    private fun syncToolbarTitle() {
+        val title = when (binding.bottomNavigation.selectedItemId) {
+            R.id.nav_gallery -> getString(R.string.toolbar_gallery)
+            R.id.nav_about -> getString(R.string.toolbar_about)
+            R.id.nav_settings -> getString(R.string.toolbar_settings)
+            else -> getString(R.string.toolbar_gallery)
+        }
+        supportActionBar?.title = title
+        binding.toolbar.title = title
     }
 
     private fun setupBottomNavigation() {
         binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
             val (fragment, title) = when (menuItem.itemId) {
-                R.id.nav_gallery -> GalleryFragment() to getString(R.string.tab_gallery)
-                R.id.nav_about -> AboutFragment() to getString(R.string.tab_about)
-                R.id.nav_settings -> SettingsFragment() to getString(R.string.tab_settings)
-                else -> GalleryFragment() to getString(R.string.tab_gallery)
+                R.id.nav_gallery -> GalleryFragment() to getString(R.string.toolbar_gallery)
+                R.id.nav_about -> AboutFragment() to getString(R.string.toolbar_about)
+                R.id.nav_settings -> SettingsFragment() to getString(R.string.toolbar_settings)
+                else -> GalleryFragment() to getString(R.string.toolbar_gallery)
             }
             replaceFragment(fragment, title)
             true
@@ -50,6 +66,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun replaceFragment(fragment: Fragment, title: String) {
+        supportActionBar?.title = title
         binding.toolbar.title = title
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
