@@ -6,6 +6,7 @@ import android.os.Build
 import android.util.LruCache
 import android.util.Size
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.databinding.ItemVideoBinding
@@ -16,7 +17,12 @@ import java.util.Locale
 class VideoAdapter(
     private var videos: List<VideoItem>,
     private val onItemClick: (VideoItem) -> Unit
-) : RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    companion object {
+        const val TYPE_HEADER = 0
+        const val TYPE_ITEM = 1
+    }
 
     private val thumbnailCache = LruCache<String, Bitmap>(50)
     private val adapterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -26,17 +32,37 @@ class VideoAdapter(
         notifyDataSetChanged()
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VideoViewHolder {
-        val binding = ItemVideoBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return VideoViewHolder(binding)
+    override fun getItemViewType(position: Int): Int {
+        return if (position == 0) TYPE_HEADER else TYPE_ITEM
     }
 
-    override fun onBindViewHolder(holder: VideoViewHolder, position: Int) {
-        val video = videos[position]
-        holder.bind(video)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return if (viewType == TYPE_HEADER) {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_gallery_header, parent, false)
+            HeaderViewHolder(view)
+        } else {
+            val binding = ItemVideoBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            VideoViewHolder(binding)
+        }
     }
 
-    override fun getItemCount(): Int = videos.size
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        if (holder is HeaderViewHolder) {
+            holder.bind()
+        } else if (holder is VideoViewHolder) {
+            val video = videos[position - 1]
+            holder.bind(video)
+        }
+    }
+
+    override fun getItemCount(): Int = if (videos.isEmpty()) 0 else videos.size + 1
+
+    inner class HeaderViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvCount: android.widget.TextView = itemView.findViewById(R.id.tv_count_header)
+        fun bind() {
+            tvCount.text = tvCount.context.getString(R.string.videos_found_count, videos.size)
+        }
+    }
 
     inner class VideoViewHolder(private val binding: ItemVideoBinding) : RecyclerView.ViewHolder(binding.root) {
         private var loadJob: Job? = null

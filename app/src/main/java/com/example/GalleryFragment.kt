@@ -92,7 +92,17 @@ class GalleryFragment : Fragment() {
             showWallpaperPreviewDialog(videoItem)
         }
         // Responsive 2-column grid layout for sleek tall portrait video displays
-        binding.recyclerGallery.layoutManager = GridLayoutManager(requireContext(), 2)
+        val layoutManager = GridLayoutManager(requireContext(), 2)
+        layoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int {
+                return if (videoAdapter?.getItemViewType(position) == VideoAdapter.TYPE_HEADER) {
+                    2
+                } else {
+                    1
+                }
+            }
+        }
+        binding.recyclerGallery.layoutManager = layoutManager
         binding.recyclerGallery.adapter = videoAdapter
     }
 
@@ -131,7 +141,6 @@ class GalleryFragment : Fragment() {
             } else {
                 binding.layoutEmpty.visibility = View.GONE
                 binding.layoutGalleryContent.visibility = View.VISIBLE
-                binding.tvCount.text = getString(R.string.videos_found_count, verticalVideosList.size)
                 videoAdapter?.updateData(verticalVideosList)
             }
         }
