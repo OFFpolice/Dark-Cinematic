@@ -2,6 +2,7 @@ package com.example
 
 import android.content.Context
 import android.os.Bundle
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.Fragment
@@ -29,6 +30,20 @@ class MainActivity : AppCompatActivity() {
 
         setupBottomNavigation()
 
+        // Handle custom back action: return to Gallery if on other screens
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (binding.bottomNavigation.selectedItemId != R.id.nav_gallery) {
+                    binding.bottomNavigation.selectedItemId = R.id.nav_gallery
+                } else {
+                    // Temporarily disable this callback and route back to system/default behavior to exit
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                    isEnabled = true
+                }
+            }
+        })
+
         // Load the initial Gallery fragment on clean app starts
         if (savedInstanceState == null) {
             replaceFragment(GalleryFragment(), getText(R.string.toolbar_gallery))
@@ -54,6 +69,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupBottomNavigation() {
         binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
+            if (binding.bottomNavigation.selectedItemId == menuItem.itemId) {
+                return@setOnItemSelectedListener true
+            }
             val (fragment, title) = when (menuItem.itemId) {
                 R.id.nav_gallery -> GalleryFragment() to getText(R.string.toolbar_gallery)
                 R.id.nav_about -> AboutFragment() to getText(R.string.toolbar_about)
@@ -62,6 +80,10 @@ class MainActivity : AppCompatActivity() {
             }
             replaceFragment(fragment, title)
             true
+        }
+
+        binding.bottomNavigation.setOnItemReselectedListener {
+            // Do nothing on reselection to prevent fragment recreation or reloading
         }
     }
 
