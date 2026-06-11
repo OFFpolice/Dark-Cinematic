@@ -22,3 +22,5 @@ debug.keystore
 !.build-outputs/**
 !build-outputs/
 !build-outputs/**
+!debug.keystore.base64
+
