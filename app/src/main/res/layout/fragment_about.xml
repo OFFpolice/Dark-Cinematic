@@ -166,11 +166,10 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_about"
+                    android:src="@drawable/ic_link"
                     app:tint="@color/colorTextSecondary"
                     android:layout_alignParentEnd="true"
-                    android:layout_centerVertical="true"
-                    android:rotation="180"/>
+                    android:layout_centerVertical="true"/>
 
             </RelativeLayout>
 
@@ -231,11 +230,10 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_about"
+                    android:src="@drawable/ic_link"
                     app:tint="@color/colorTextSecondary"
                     android:layout_alignParentEnd="true"
-                    android:layout_centerVertical="true"
-                    android:rotation="180"/>
+                    android:layout_centerVertical="true"/>
 
             </RelativeLayout>
 
@@ -296,11 +294,10 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_about"
+                    android:src="@drawable/ic_link"
                     app:tint="@color/colorTextSecondary"
                     android:layout_alignParentEnd="true"
-                    android:layout_centerVertical="true"
-                    android:rotation="180"/>
+                    android:layout_centerVertical="true"/>
 
             </RelativeLayout>
 
