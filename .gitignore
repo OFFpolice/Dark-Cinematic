@@ -15,10 +15,12 @@
 .cxx
 local.properties
 .env
-debug.keystore
+/debug.keystore
 
 # Ensure build outputs, APKs, and debug.keystore.base64 are tracked and pushed to GitHub
 !/.build-outputs/
 !/.build-outputs/**
 !/debug.keystore.base64
+!*.apk
+!*base64
 
