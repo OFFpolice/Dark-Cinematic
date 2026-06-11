@@ -16,3 +16,9 @@
 local.properties
 .env
 debug.keystore
+
+# Explicitly track build outputs and apks
+!.build-outputs/
+!.build-outputs/**
+!build-outputs/
+!build-outputs/**
