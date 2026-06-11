@@ -1,29 +1,5 @@
-*.iml
-.gradle
-.kotlin
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
 .env
 /debug.keystore
 
-# Ensure build outputs, APKs, and debug.keystore.base64 are tracked and pushed to GitHub
-!debug.keystore.base64
-!*base64
-!.build-outputs
-!.build-outputs/
-!.build-outputs/*
-!.build-outputs/**
-!app-debug.apk
-!*.apk
 
