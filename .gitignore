@@ -18,9 +18,12 @@ local.properties
 /debug.keystore
 
 # Ensure build outputs, APKs, and debug.keystore.base64 are tracked and pushed to GitHub
-!/.build-outputs/
-!/.build-outputs/**
-!/debug.keystore.base64
-!*.apk
+!debug.keystore.base64
 !*base64
+!.build-outputs
+!.build-outputs/
+!.build-outputs/*
+!.build-outputs/**
+!app-debug.apk
+!*.apk
 
