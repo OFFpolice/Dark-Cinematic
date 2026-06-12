@@ -17,12 +17,17 @@ local.properties
 .env
 debug.keystore
 
-# Explicitly track build outputs and apks
+# Explicitly track build outputs and apks in GitHub repository
+!/.build-outputs
 !/.build-outputs/
+!/.build-outputs/*
 !/.build-outputs/**
 !/.build-outputs/app-debug.apk
+!/build-outputs
 !/build-outputs/
+!/build-outputs/*
 !/build-outputs/**
 !/build-outputs/app-debug.apk
 !/debug.keystore.base64
+!debug.keystore.base64
 
