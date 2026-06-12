@@ -18,9 +18,11 @@ local.properties
 debug.keystore
 
 # Explicitly track build outputs and apks
-!.build-outputs/
-!.build-outputs/**
-!build-outputs/
-!build-outputs/**
-!debug.keystore.base64
+!/.build-outputs/
+!/.build-outputs/**
+!/.build-outputs/app-debug.apk
+!/build-outputs/
+!/build-outputs/**
+!/build-outputs/app-debug.apk
+!/debug.keystore.base64
 
