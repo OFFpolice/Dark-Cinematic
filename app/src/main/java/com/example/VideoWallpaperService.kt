@@ -22,11 +22,7 @@ class VideoWallpaperService : WallpaperService() {
 
     override fun onCreate() {
         super.onCreate()
-        db = Room.databaseBuilder(
-            applicationContext,
-            WallpaperDatabase::class.java,
-            "wallpaper_db"
-        ).build()
+        db = WallpaperDatabase.getInstance(applicationContext)
     }
 
     override fun onCreateEngine(): Engine {
@@ -36,6 +32,10 @@ class VideoWallpaperService : WallpaperService() {
     inner class VideoEngine : Engine() {
         private var mediaPlayer: MediaPlayer? = null
         private var activeItem: WallpaperItem? = null
+        private var loadedItemId: Int? = null
+        private var loadedVideoUriStr: String? = null
+        private var loadedTrimStartMs: Long = 0L
+        private var loadedTrimEndMs: Long = 0L
         private val mainHandler = Handler(Looper.getMainLooper())
         private var job: Job? = null
         private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -110,10 +110,18 @@ class VideoWallpaperService : WallpaperService() {
                 // Apply night brightness checks
                 mainHandler.post(nightModeRunnable)
                 
-                if (mediaPlayer == null) {
+                val item = activeItem
+                val isSameVideo = item != null && loadedItemId == item.id && loadedVideoUriStr == item.videoUriStr
+                
+                if (mediaPlayer == null || !isSameVideo) {
                     setupMediaPlayer()
                 } else {
                     try {
+                        if (loadedTrimStartMs != item.trimStartMs || loadedTrimEndMs != item.trimEndMs) {
+                            loadedTrimStartMs = item.trimStartMs
+                            loadedTrimEndMs = item.trimEndMs
+                            mediaPlayer?.seekTo(item.trimStartMs.toInt())
+                        }
                         mediaPlayer?.start()
                         mainHandler.post(trimLoopRunnable)
                     } catch (e: Exception) {
@@ -212,6 +220,10 @@ class VideoWallpaperService : WallpaperService() {
                     
                     prepareAsync()
                 }
+                loadedItemId = item.id
+                loadedVideoUriStr = item.videoUriStr
+                loadedTrimStartMs = item.trimStartMs
+                loadedTrimEndMs = item.trimEndMs
             } catch (e: Exception) {
                 Log.e("VideoWallpaper", "Error setting up MediaPlayer", e)
             }
@@ -228,6 +240,10 @@ class VideoWallpaperService : WallpaperService() {
                 }
             }
             mediaPlayer = null
+            loadedItemId = null
+            loadedVideoUriStr = null
+            loadedTrimStartMs = 0L
+            loadedTrimEndMs = 0L
         }
 
         private fun adjustSurfaceSize() {

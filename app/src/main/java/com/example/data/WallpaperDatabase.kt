@@ -1,5 +1,6 @@
 package com.example.data
 
+import android.content.Context
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
@@ -56,4 +57,23 @@ interface WallpaperDao {
 @Database(entities = [WallpaperItem::class], version = 1, exportSchema = false)
 abstract class WallpaperDatabase : RoomDatabase() {
     abstract val wallpaperDao: WallpaperDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: WallpaperDatabase? = null
+
+        fun getInstance(context: Context): WallpaperDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    WallpaperDatabase::class.java,
+                    "wallpaper_db"
+                )
+                .enableMultiInstanceInvalidation()
+                .build()
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
 }

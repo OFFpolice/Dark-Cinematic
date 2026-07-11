@@ -60,11 +60,7 @@ class GalleryFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        db = Room.databaseBuilder(
-            requireContext().applicationContext,
-            WallpaperDatabase::class.java,
-            "wallpaper_db"
-        ).build()
+        db = WallpaperDatabase.getInstance(requireContext())
     }
 
     override fun onCreateView(
@@ -104,6 +100,24 @@ class GalleryFragment : Fragment() {
         }
         binding.recyclerGallery.layoutManager = layoutManager
         binding.recyclerGallery.adapter = videoAdapter
+
+        // Scroll listener to toggle visibility of fab_scroll_to_top with aesthetic animation
+        binding.recyclerGallery.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val firstVisibleItem = layoutManager.findFirstVisibleItemPosition()
+                if (firstVisibleItem > 1) {
+                    binding.fabScrollToTop.show()
+                } else {
+                    binding.fabScrollToTop.hide()
+                }
+            }
+        })
+
+        // Click listener to scroll to top smoothly
+        binding.fabScrollToTop.setOnClickListener {
+            binding.recyclerGallery.smoothScrollToPosition(0)
+        }
     }
 
     private fun checkPermissionsAndLoadVideos() {

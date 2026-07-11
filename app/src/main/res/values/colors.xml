@@ -15,6 +15,7 @@
 
     <color name="white">#FFFFFFFF</color>
     <color name="black">#FF000000</color>
+    <color name="warning_red">#DC2626</color>
     <color name="ripple_color">#206366F1</color>
     <color name="shadow_color">#0F000000</color>
 </resources>
