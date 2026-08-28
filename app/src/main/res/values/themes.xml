@@ -3,18 +3,12 @@
 
     <!-- Base application theme. -->
     <style name="Theme.MyApplication" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Main brand colors -->
+        <!-- Main colors -->
         <item name="colorPrimary">@color/primary</item>
-        <item name="colorPrimaryVariant">@color/primary_variant</item>
         <item name="colorSecondary">@color/colorSecondary</item>
-        <item name="colorOnSecondary">@color/colorOnSecondary</item>
         <item name="android:colorBackground">@color/colorBackground</item>
-        <item name="android:windowBackground">@color/colorBackground</item>
         <item name="colorSurface">@color/colorSurface</item>
         <item name="colorSurfaceVariant">@color/colorSurface</item>
-        <item name="colorOnSurface">@color/colorTextPrimary</item>
-        <item name="colorOnSurfaceVariant">@color/colorTextSecondary</item>
-        <item name="colorOutline">@color/colorCardBorder</item>
         
         <!-- Ripple effect styling -->
         <item name="colorControlHighlight">@color/ripple_color</item>

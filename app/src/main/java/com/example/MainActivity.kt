@@ -12,17 +12,13 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-    companion object {
-        private const val TAG_GALLERY = "TAG_GALLERY"
-        private const val TAG_ABOUT = "TAG_ABOUT"
-        private const val TAG_SETTINGS = "TAG_SETTINGS"
-        private const val KEY_SELECTED_TAB = "KEY_SELECTED_TAB"
-    }
-
-    private var currentTabId = R.id.nav_gallery
+    private val galleryFragment by lazy { GalleryFragment() }
+    private val aboutFragment by lazy { AboutFragment() }
+    private val settingsFragment by lazy { SettingsFragment() }
+    private var activeFragment: Fragment? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Fast-path theme application before inflating views
+        // Fast-path theme application
         val prefs = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         val savedTheme = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
         if (AppCompatDelegate.getDefaultNightMode() != savedTheme) {
@@ -30,22 +26,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         super.onCreate(savedInstanceState)
-
+        
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         // Setup custom toolbar
         setSupportActionBar(binding.toolbar)
 
-        currentTabId = savedInstanceState?.getInt(KEY_SELECTED_TAB, R.id.nav_gallery) ?: R.id.nav_gallery
-
+        setupFragments(savedInstanceState)
         setupBottomNavigation()
-        showTab(currentTabId)
 
         // Handle custom back action: return to Gallery if on other screens
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (currentTabId != R.id.nav_gallery) {
+                if (binding.bottomNavigation.selectedItemId != R.id.nav_gallery) {
                     binding.bottomNavigation.selectedItemId = R.id.nav_gallery
                 } else {
                     isEnabled = false
@@ -56,14 +50,56 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putInt(KEY_SELECTED_TAB, currentTabId)
+    private fun setupFragments(savedInstanceState: Bundle?) {
+        if (savedInstanceState == null) {
+            val title = getText(R.string.toolbar_gallery)
+            supportActionBar?.title = title
+            binding.toolbar.title = title
+
+            supportFragmentManager.beginTransaction()
+                .add(R.id.fragment_container, galleryFragment, "gallery")
+                .commit()
+            activeFragment = galleryFragment
+        } else {
+            // Restore active fragment reference from FragmentManager
+            activeFragment = supportFragmentManager.findFragmentById(R.id.fragment_container) 
+                ?: galleryFragment
+            syncToolbarTitle()
+        }
+    }
+
+    override fun onPostCreate(savedInstanceState: Bundle?) {
+        super.onPostCreate(savedInstanceState)
+        syncToolbarTitle()
+    }
+
+    private fun syncToolbarTitle() {
+        val title = when (binding.bottomNavigation.selectedItemId) {
+            R.id.nav_gallery -> getText(R.string.toolbar_gallery)
+            R.id.nav_about -> getText(R.string.toolbar_about)
+            R.id.nav_settings -> getText(R.string.toolbar_settings)
+            else -> getText(R.string.toolbar_gallery)
+        }
+        supportActionBar?.title = title
+        binding.toolbar.title = title
     }
 
     private fun setupBottomNavigation() {
         binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
-            showTab(menuItem.itemId)
+            val targetFragment = when (menuItem.itemId) {
+                R.id.nav_gallery -> galleryFragment
+                R.id.nav_about -> aboutFragment
+                R.id.nav_settings -> settingsFragment
+                else -> galleryFragment
+            }
+            val title = when (menuItem.itemId) {
+                R.id.nav_gallery -> getText(R.string.toolbar_gallery)
+                R.id.nav_about -> getText(R.string.toolbar_about)
+                R.id.nav_settings -> getText(R.string.toolbar_settings)
+                else -> getText(R.string.toolbar_gallery)
+            }
+
+            switchFragment(targetFragment, title)
             true
         }
 
@@ -72,57 +108,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showTab(tabId: Int) {
-        currentTabId = tabId
-        if (binding.bottomNavigation.selectedItemId != tabId) {
-            binding.bottomNavigation.selectedItemId = tabId
-        }
+    private fun switchFragment(target: Fragment, title: CharSequence) {
+        if (activeFragment === target) return
 
-        val targetTag = when (tabId) {
-            R.id.nav_gallery -> TAG_GALLERY
-            R.id.nav_about -> TAG_ABOUT
-            R.id.nav_settings -> TAG_SETTINGS
-            else -> TAG_GALLERY
-        }
-
-        val titleRes = when (tabId) {
-            R.id.nav_gallery -> R.string.toolbar_gallery
-            R.id.nav_about -> R.string.toolbar_about
-            R.id.nav_settings -> R.string.toolbar_settings
-            else -> R.string.toolbar_gallery
-        }
-        val title = getText(titleRes)
         supportActionBar?.title = title
         binding.toolbar.title = title
 
-        val fm = supportFragmentManager
-        val transaction = fm.beginTransaction().setReorderingAllowed(true)
+        val transaction = supportFragmentManager.beginTransaction()
+            .setReorderingAllowed(true)
 
-        val allTags = listOf(TAG_GALLERY, TAG_ABOUT, TAG_SETTINGS)
-        for (tag in allTags) {
-            val fragment = fm.findFragmentByTag(tag)
-            if (tag == targetTag) {
-                if (fragment == null) {
-                    val newFragment = createFragmentForTag(tag)
-                    transaction.add(R.id.fragment_container, newFragment, tag)
-                } else {
-                    transaction.show(fragment)
-                }
-            } else {
-                if (fragment != null) {
-                    transaction.hide(fragment)
-                }
-            }
+        activeFragment?.let { transaction.hide(it) }
+
+        if (!target.isAdded) {
+            transaction.add(R.id.fragment_container, target)
+        } else {
+            transaction.show(target)
         }
+
         transaction.commit()
-    }
-
-    private fun createFragmentForTag(tag: String): Fragment {
-        return when (tag) {
-            TAG_GALLERY -> GalleryFragment()
-            TAG_ABOUT -> AboutFragment()
-            TAG_SETTINGS -> SettingsFragment()
-            else -> GalleryFragment()
-        }
+        activeFragment = target
     }
 }

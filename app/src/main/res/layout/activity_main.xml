@@ -4,16 +4,15 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/colorBackground"
+    android:background="@color/colorSurface"
     android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
-    <!-- Content Container (drawn first, taking full height) -->
+    <!-- Content Container (drawn first, taking full height so content can glide under top/bottom bars) -->
     <FrameLayout
         android:id="@+id/fragment_container"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="@color/colorBackground"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
@@ -25,9 +24,7 @@
         android:layout_width="0dp"
         android:layout_height="?attr/actionBarSize"
         android:background="@color/colorSurface"
-        app:backgroundTint="@color/colorSurface"
         android:elevation="0dp"
-        app:elevation="0dp"
         app:titleCentered="true"
         app:title="@string/app_name"
         app:titleTextColor="@color/colorTextPrimary"
@@ -43,9 +40,6 @@
         android:layout_height="wrap_content"
         android:background="@color/colorSurface"
         app:backgroundTint="@color/colorSurface"
-        app:itemIconTint="@color/bottom_nav_item_color"
-        app:itemTextColor="@color/bottom_nav_item_color"
-        app:itemRippleColor="@color/ripple_color"
         app:elevation="0dp"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/bottom_nav_menu"
