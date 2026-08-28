@@ -1,14 +1,14 @@
 package com.example
 
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.app.WallpaperManager
 import android.content.ComponentName
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.database.Cursor
 import android.media.MediaMetadataRetriever
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -17,14 +17,12 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.room.Room
 import com.example.data.WallpaperDatabase
 import com.example.data.WallpaperItem
 import com.example.databinding.DialogPreviewBinding
@@ -40,6 +38,7 @@ class GalleryFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var videoAdapter: VideoAdapter? = null
+    private var skeletonAnimator: ObjectAnimator? = null
     private lateinit var db: WallpaperDatabase
 
     private val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -76,6 +75,8 @@ class GalleryFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupRecyclerView()
+        startSkeletonAnimation()
+
         binding.btnGrantPermission.setOnClickListener {
             requestPermissionLauncher.launch(storagePermission)
         }
@@ -84,10 +85,10 @@ class GalleryFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        videoAdapter = VideoAdapter(emptyList()) { videoItem ->
+        videoAdapter = VideoAdapter { videoItem ->
             showWallpaperPreviewDialog(videoItem)
         }
-        // Responsive 2-column grid layout for sleek tall portrait video displays
+
         val layoutManager = GridLayoutManager(requireContext(), 2)
         layoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
             override fun getSpanSize(position: Int): Int {
@@ -98,10 +99,15 @@ class GalleryFragment : Fragment() {
                 }
             }
         }
-        binding.recyclerGallery.layoutManager = layoutManager
-        binding.recyclerGallery.adapter = videoAdapter
 
-        // Scroll listener to toggle visibility of fab_scroll_to_top with aesthetic animation
+        binding.recyclerGallery.apply {
+            this.layoutManager = layoutManager
+            this.adapter = videoAdapter
+            setHasFixedSize(true)
+            setItemViewCacheSize(12)
+            recycledViewPool.setMaxRecycledViews(VideoAdapter.TYPE_ITEM, 20)
+        }
+
         binding.recyclerGallery.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
@@ -114,10 +120,23 @@ class GalleryFragment : Fragment() {
             }
         })
 
-        // Click listener to scroll to top smoothly
         binding.fabScrollToTop.setOnClickListener {
             binding.recyclerGallery.smoothScrollToPosition(0)
         }
+    }
+
+    private fun startSkeletonAnimation() {
+        skeletonAnimator = ObjectAnimator.ofFloat(binding.layoutSkeleton, View.ALPHA, 0.4f, 1.0f).apply {
+            duration = 750
+            repeatMode = ValueAnimator.REVERSE
+            repeatCount = ValueAnimator.INFINITE
+            start()
+        }
+    }
+
+    private fun stopSkeletonAnimation() {
+        skeletonAnimator?.cancel()
+        skeletonAnimator = null
     }
 
     private fun checkPermissionsAndLoadVideos() {
@@ -131,37 +150,41 @@ class GalleryFragment : Fragment() {
     }
 
     private fun showPermissionLayout() {
-        binding.progressLoading.visibility = View.GONE
+        stopSkeletonAnimation()
+        binding.layoutSkeleton.visibility = View.GONE
         binding.layoutEmpty.visibility = View.GONE
         binding.layoutGalleryContent.visibility = View.GONE
         binding.layoutPermission.visibility = View.VISIBLE
     }
 
     private fun loadVideosAsync() {
-        binding.progressLoading.visibility = View.VISIBLE
+        binding.layoutSkeleton.visibility = View.VISIBLE
         binding.layoutEmpty.visibility = View.GONE
         binding.layoutGalleryContent.visibility = View.GONE
+        startSkeletonAnimation()
 
         lifecycleScope.launch {
             val verticalVideosList = withContext(Dispatchers.IO) {
-                queryVerticalVideos(requireContext())
+                queryVerticalVideos(requireContext().applicationContext)
             }
 
-            binding.progressLoading.visibility = View.GONE
+            stopSkeletonAnimation()
+            binding.layoutSkeleton.visibility = View.GONE
 
             if (verticalVideosList.isEmpty()) {
                 binding.layoutEmpty.visibility = View.VISIBLE
                 binding.layoutGalleryContent.visibility = View.GONE
+                videoAdapter?.submitList(emptyList())
             } else {
                 binding.layoutEmpty.visibility = View.GONE
                 binding.layoutGalleryContent.visibility = View.VISIBLE
-                videoAdapter?.updateData(verticalVideosList)
+                videoAdapter?.submitList(verticalVideosList)
             }
         }
     }
 
     private fun queryVerticalVideos(context: Context): List<VideoItem> {
-        val list = mutableListOf<VideoItem>()
+        val list = ArrayList<VideoItem>(32)
         val uri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Video.Media._ID,
@@ -193,40 +216,37 @@ class GalleryFragment : Fragment() {
                     val path = cursor.getString(pathCol) ?: ""
                     val duration = if (durCol != -1) cursor.getLong(durCol) else 0L
 
-                    var width = 0
-                    var height = 0
-                    if (widthCol != -1) width = cursor.getInt(widthCol)
-                    if (heightCol != -1) height = cursor.getInt(heightCol)
+                    var width = if (widthCol != -1) cursor.getInt(widthCol) else 0
+                    var height = if (heightCol != -1) cursor.getInt(heightCol) else 0
 
                     val videoUri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
 
-                    // Ensure video file path is alive
                     if (path.isNotEmpty() && File(path).exists()) {
                         var isVertical = false
                         if (width > 0 && height > 0) {
-                            isVertical = height > width
+                            isVertical = height >= width
                         } else {
-                            // Extract metadata as fallback
                             val retriever = MediaMetadataRetriever()
                             try {
                                 retriever.setDataSource(context, videoUri)
                                 val wStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
                                 val hStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
                                 val rotStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
-                                
+
                                 val w = wStr?.toIntOrNull() ?: 0
                                 val h = hStr?.toIntOrNull() ?: 0
                                 val rot = rotStr?.toIntOrNull() ?: 0
 
                                 isVertical = if (rot == 90 || rot == 270) {
-                                    w > h
+                                    w >= h
                                 } else {
-                                    h > w
+                                    h >= w
                                 }
                             } catch (e: Exception) {
-                                Log.e("Gallery", "Error metadata extraction: $path", e)
+                                // Fallback default to allow user preview
+                                isVertical = true
                             } finally {
-                                try { retriever.release() } catch (ex: Exception) {}
+                                try { retriever.release() } catch (ignored: Exception) {}
                             }
                         }
 
@@ -246,15 +266,14 @@ class GalleryFragment : Fragment() {
         val builder = AlertDialog.Builder(requireContext())
         val dialogBinding = DialogPreviewBinding.inflate(layoutInflater)
         builder.setView(dialogBinding.root)
-        
+
         val dialog = builder.create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        // Setup preview VideoView
         dialogBinding.dialogVideoView.apply {
             setOnPreparedListener { mp ->
                 mp.isLooping = true
-                mp.setVolume(0f, 0f) // Silent wallpaper pre-visualization
+                mp.setVolume(0f, 0f)
                 setVideoSize(mp.videoWidth, mp.videoHeight)
                 start()
             }
@@ -272,17 +291,14 @@ class GalleryFragment : Fragment() {
 
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    // Reset all other assets to inactive status
                     db.wallpaperDao.clearAllActive()
-                    
-                    // Insert the selected item as standard database active blueprint
                     val wallpaper = WallpaperItem(
                         title = video.name,
                         videoUriStr = video.path,
                         trimStartMs = 0L,
                         trimEndMs = video.duration,
                         isLooping = true,
-                        thumbnailUriStr = null, // dynamic extract in service
+                        thumbnailUriStr = null,
                         nightModeEnabled = false,
                         isActive = true
                     )
@@ -300,7 +316,7 @@ class GalleryFragment : Fragment() {
         dialog.setOnDismissListener {
             try {
                 dialogBinding.dialogVideoView.stopPlayback()
-            } catch (ex: Exception) {}
+            } catch (ignored: Exception) {}
         }
 
         dialog.show()
@@ -316,7 +332,6 @@ class GalleryFragment : Fragment() {
         try {
             startActivity(intent)
         } catch (e: Exception) {
-            // Fallback to general wallpaper picker on failure
             try {
                 val fallbackIntent = Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER)
                 startActivity(fallbackIntent)
@@ -327,6 +342,7 @@ class GalleryFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        stopSkeletonAnimation()
         super.onDestroyView()
         videoAdapter?.onDestroy()
         _binding = null

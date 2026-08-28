@@ -14,21 +14,22 @@
         android:orientation="vertical"
         android:gravity="center"
         android:visibility="gone"
+        android:padding="24dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent">
 
         <ImageView
-            android:layout_width="80dp"
-            android:layout_height="80dp"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
             android:src="@drawable/ic_gallery"
             app:tint="@color/primary"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="20dp"
             android:text="@string/permission_required_gallery"
             android:textColor="@color/colorTextPrimary"
             android:textSize="16sp"
@@ -45,16 +46,81 @@
 
     </LinearLayout>
 
-    <!-- Scanning / Loading spinner -->
-    <ProgressBar
-        android:id="@+id/progress_loading"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+    <!-- Skeleton Loading Grid Layout -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/layout_skeleton"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:paddingTop="?attr/actionBarSize"
+        android:paddingBottom="80dp"
         android:visibility="visible"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"/>
+        app:layout_constraintRight_toRightOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Skeleton Header -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="12dp">
+                <View
+                    android:layout_width="140dp"
+                    android:layout_height="18dp"
+                    android:background="@drawable/bg_skeleton_bar"
+                    android:alpha="0.6"/>
+            </LinearLayout>
+
+            <!-- Skeleton Row 1 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <include
+                    layout="@layout/item_video_skeleton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"/>
+
+                <include
+                    layout="@layout/item_video_skeleton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"/>
+            </LinearLayout>
+
+            <!-- Skeleton Row 2 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <include
+                    layout="@layout/item_video_skeleton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"/>
+
+                <include
+                    layout="@layout/item_video_skeleton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"/>
+            </LinearLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
     <!-- Empty State layout -->
     <LinearLayout
@@ -64,17 +130,18 @@
         android:orientation="vertical"
         android:gravity="center"
         android:visibility="gone"
+        android:padding="24dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent">
 
         <ImageView
-            android:layout_width="80dp"
-            android:layout_height="80dp"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
             android:src="@drawable/ic_gallery"
             app:tint="@color/colorTextSecondary"
-            android:alpha="0.5"/>
+            android:alpha="0.4"/>
 
         <TextView
             android:layout_width="wrap_content"
@@ -82,7 +149,7 @@
             android:layout_marginTop="16dp"
             android:text="@string/no_videos_found"
             android:textColor="@color/colorTextSecondary"
-            android:textSize="16sp"
+            android:textSize="15sp"
             android:gravity="center"/>
 
     </LinearLayout>
@@ -104,8 +171,8 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:clipToPadding="false"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp"
+            android:paddingLeft="10dp"
+            android:paddingRight="10dp"
             android:paddingTop="?attr/actionBarSize"
             android:paddingBottom="80dp"
             app:layout_constraintTop_toTopOf="parent"
