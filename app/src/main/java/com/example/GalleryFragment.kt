@@ -1,7 +1,5 @@
 package com.example
 
-import android.animation.ObjectAnimator
-import android.animation.ValueAnimator
 import android.app.WallpaperManager
 import android.content.ComponentName
 import android.content.ContentUris
@@ -38,7 +36,6 @@ class GalleryFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var videoAdapter: VideoAdapter? = null
-    private var skeletonAnimator: ObjectAnimator? = null
     private lateinit var db: WallpaperDatabase
 
     private val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -75,7 +72,6 @@ class GalleryFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupRecyclerView()
-        startSkeletonAnimation()
 
         binding.btnGrantPermission.setOnClickListener {
             requestPermissionLauncher.launch(storagePermission)
@@ -125,20 +121,6 @@ class GalleryFragment : Fragment() {
         }
     }
 
-    private fun startSkeletonAnimation() {
-        skeletonAnimator = ObjectAnimator.ofFloat(binding.layoutSkeleton, View.ALPHA, 0.4f, 1.0f).apply {
-            duration = 750
-            repeatMode = ValueAnimator.REVERSE
-            repeatCount = ValueAnimator.INFINITE
-            start()
-        }
-    }
-
-    private fun stopSkeletonAnimation() {
-        skeletonAnimator?.cancel()
-        skeletonAnimator = null
-    }
-
     private fun checkPermissionsAndLoadVideos() {
         val permissionCheck = ContextCompat.checkSelfPermission(requireContext(), storagePermission)
         if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
@@ -150,26 +132,23 @@ class GalleryFragment : Fragment() {
     }
 
     private fun showPermissionLayout() {
-        stopSkeletonAnimation()
-        binding.layoutSkeleton.visibility = View.GONE
+        binding.progressLoading.visibility = View.GONE
         binding.layoutEmpty.visibility = View.GONE
         binding.layoutGalleryContent.visibility = View.GONE
         binding.layoutPermission.visibility = View.VISIBLE
     }
 
     private fun loadVideosAsync() {
-        binding.layoutSkeleton.visibility = View.VISIBLE
+        binding.progressLoading.visibility = View.VISIBLE
         binding.layoutEmpty.visibility = View.GONE
         binding.layoutGalleryContent.visibility = View.GONE
-        startSkeletonAnimation()
 
         lifecycleScope.launch {
             val verticalVideosList = withContext(Dispatchers.IO) {
                 queryVerticalVideos(requireContext().applicationContext)
             }
 
-            stopSkeletonAnimation()
-            binding.layoutSkeleton.visibility = View.GONE
+            binding.progressLoading.visibility = View.GONE
 
             if (verticalVideosList.isEmpty()) {
                 binding.layoutEmpty.visibility = View.VISIBLE
@@ -243,7 +222,6 @@ class GalleryFragment : Fragment() {
                                     h >= w
                                 }
                             } catch (e: Exception) {
-                                // Fallback default to allow user preview
                                 isVertical = true
                             } finally {
                                 try { retriever.release() } catch (ignored: Exception) {}
@@ -342,7 +320,6 @@ class GalleryFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        stopSkeletonAnimation()
         super.onDestroyView()
         videoAdapter?.onDestroy()
         _binding = null

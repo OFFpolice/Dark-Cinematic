@@ -46,81 +46,18 @@
 
     </LinearLayout>
 
-    <!-- Skeleton Loading Grid Layout -->
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/layout_skeleton"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:clipToPadding="false"
-        android:paddingLeft="10dp"
-        android:paddingRight="10dp"
-        android:paddingTop="?attr/actionBarSize"
-        android:paddingBottom="80dp"
+    <!-- Circular Progress Bar Spinner in center of screen -->
+    <ProgressBar
+        android:id="@+id/progress_loading"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:indeterminate="true"
+        android:indeterminateTint="@color/primary"
         android:visibility="visible"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <!-- Skeleton Header -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="12dp">
-                <View
-                    android:layout_width="140dp"
-                    android:layout_height="18dp"
-                    android:background="@drawable/bg_skeleton_bar"
-                    android:alpha="0.6"/>
-            </LinearLayout>
-
-            <!-- Skeleton Row 1 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <include
-                    layout="@layout/item_video_skeleton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"/>
-
-                <include
-                    layout="@layout/item_video_skeleton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"/>
-            </LinearLayout>
-
-            <!-- Skeleton Row 2 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <include
-                    layout="@layout/item_video_skeleton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"/>
-
-                <include
-                    layout="@layout/item_video_skeleton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"/>
-            </LinearLayout>
-
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+        app:layout_constraintRight_toRightOf="parent"/>
 
     <!-- Empty State layout -->
     <LinearLayout
