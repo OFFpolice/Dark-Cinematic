@@ -3,8 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="6dp"
-    app:cardCornerRadius="14dp"
+    android:layout_margin="4dp"
+    app:cardCornerRadius="10dp"
     app:cardElevation="0dp"
     app:strokeColor="@color/colorCardBorder"
     app:strokeWidth="1dp"
@@ -14,11 +14,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- Portrait 9:16 aspect ratio skeleton -->
+        <!-- Compact 3:4 aspect ratio skeleton for a smaller, neater placeholder -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="0dp"
             android:layout_height="0dp"
-            app:layout_constraintDimensionRatio="9:16"
+            app:layout_constraintDimensionRatio="3:4"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"
@@ -30,40 +30,40 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@color/colorCardBorder"
-                android:alpha="0.4" />
+                android:alpha="0.35" />
 
-            <!-- Circular Play Placeholder -->
+            <!-- Circular Play Placeholder (compact) -->
             <View
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_margin="12dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_margin="8dp"
                 android:background="@drawable/bg_settings_icon"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintLeft_toLeftOf="parent"
-                android:alpha="0.6"/>
+                android:alpha="0.5"/>
 
-            <!-- Skeleton text lines -->
+            <!-- Skeleton text lines (compact) -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_margin="12dp"
+                android:layout_margin="8dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintLeft_toLeftOf="parent"
                 app:layout_constraintRight_toRightOf="parent">
 
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="12dp"
+                    android:layout_height="9dp"
                     android:background="@drawable/bg_skeleton_bar"
-                    android:alpha="0.8" />
+                    android:alpha="0.75" />
 
                 <View
-                    android:layout_width="50dp"
-                    android:layout_height="10dp"
-                    android:layout_marginTop="6dp"
+                    android:layout_width="40dp"
+                    android:layout_height="7dp"
+                    android:layout_marginTop="4dp"
                     android:background="@drawable/bg_skeleton_bar"
-                    android:alpha="0.5" />
+                    android:alpha="0.45" />
 
             </LinearLayout>
 

@@ -12,8 +12,13 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
+    private val galleryFragment by lazy { GalleryFragment() }
+    private val aboutFragment by lazy { AboutFragment() }
+    private val settingsFragment by lazy { SettingsFragment() }
+    private var activeFragment: Fragment? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply saved theme preferences before view inflating or lifecycle runs
+        // Fast-path theme application
         val prefs = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         val savedTheme = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
         if (AppCompatDelegate.getDefaultNightMode() != savedTheme) {
@@ -25,9 +30,10 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Setup custom toolbar title
+        // Setup custom toolbar
         setSupportActionBar(binding.toolbar)
 
+        setupFragments(savedInstanceState)
         setupBottomNavigation()
 
         // Handle custom back action: return to Gallery if on other screens
@@ -36,18 +42,29 @@ class MainActivity : AppCompatActivity() {
                 if (binding.bottomNavigation.selectedItemId != R.id.nav_gallery) {
                     binding.bottomNavigation.selectedItemId = R.id.nav_gallery
                 } else {
-                    // Temporarily disable this callback and route back to system/default behavior to exit
                     isEnabled = false
                     onBackPressedDispatcher.onBackPressed()
                     isEnabled = true
                 }
             }
         })
+    }
 
-        // Load the initial Gallery fragment on clean app starts
+    private fun setupFragments(savedInstanceState: Bundle?) {
         if (savedInstanceState == null) {
-            replaceFragment(GalleryFragment(), getText(R.string.toolbar_gallery))
-            binding.bottomNavigation.selectedItemId = R.id.nav_gallery
+            val title = getText(R.string.toolbar_gallery)
+            supportActionBar?.title = title
+            binding.toolbar.title = title
+
+            supportFragmentManager.beginTransaction()
+                .add(R.id.fragment_container, galleryFragment, "gallery")
+                .commit()
+            activeFragment = galleryFragment
+        } else {
+            // Restore active fragment reference from FragmentManager
+            activeFragment = supportFragmentManager.findFragmentById(R.id.fragment_container) 
+                ?: galleryFragment
+            syncToolbarTitle()
         }
     }
 
@@ -69,29 +86,46 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupBottomNavigation() {
         binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
-            if (binding.bottomNavigation.selectedItemId == menuItem.itemId) {
-                return@setOnItemSelectedListener true
+            val targetFragment = when (menuItem.itemId) {
+                R.id.nav_gallery -> galleryFragment
+                R.id.nav_about -> aboutFragment
+                R.id.nav_settings -> settingsFragment
+                else -> galleryFragment
             }
-            val (fragment, title) = when (menuItem.itemId) {
-                R.id.nav_gallery -> GalleryFragment() to getText(R.string.toolbar_gallery)
-                R.id.nav_about -> AboutFragment() to getText(R.string.toolbar_about)
-                R.id.nav_settings -> SettingsFragment() to getText(R.string.toolbar_settings)
-                else -> GalleryFragment() to getText(R.string.toolbar_gallery)
+            val title = when (menuItem.itemId) {
+                R.id.nav_gallery -> getText(R.string.toolbar_gallery)
+                R.id.nav_about -> getText(R.string.toolbar_about)
+                R.id.nav_settings -> getText(R.string.toolbar_settings)
+                else -> getText(R.string.toolbar_gallery)
             }
-            replaceFragment(fragment, title)
+
+            switchFragment(targetFragment, title)
             true
         }
 
         binding.bottomNavigation.setOnItemReselectedListener {
-            // Do nothing on reselection to prevent fragment recreation or reloading
+            // Do nothing on reselection to maintain instant performance
         }
     }
 
-    private fun replaceFragment(fragment: Fragment, title: CharSequence) {
+    private fun switchFragment(target: Fragment, title: CharSequence) {
+        if (activeFragment === target) return
+
         supportActionBar?.title = title
         binding.toolbar.title = title
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, fragment)
-            .commit()
+
+        val transaction = supportFragmentManager.beginTransaction()
+            .setReorderingAllowed(true)
+
+        activeFragment?.let { transaction.hide(it) }
+
+        if (!target.isAdded) {
+            transaction.add(R.id.fragment_container, target)
+        } else {
+            transaction.show(target)
+        }
+
+        transaction.commit()
+        activeFragment = target
     }
 }
