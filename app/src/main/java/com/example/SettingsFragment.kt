@@ -1,15 +1,20 @@
 package com.example
 
+import android.app.WallpaperManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.RadioGroup
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.fragment.app.Fragment
 import com.example.databinding.FragmentSettingsBinding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class SettingsFragment : Fragment() {
 
@@ -28,58 +33,125 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        loadCurrentSettings()
-        setupListeners()
+        updateThemeSummary()
+        updateLanguageSummary()
+        setupClickListeners()
     }
 
-    private fun loadCurrentSettings() {
-        val context = requireContext()
-        val prefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-
-        // 1. Language Loading
-        val currentLocales = AppCompatDelegate.getApplicationLocales()
-        if (currentLocales.isEmpty) {
-            binding.rbLangSystem.isChecked = true
-        } else {
-            val primaryLang = currentLocales.get(0)?.language ?: ""
-            when (primaryLang) {
-                "en" -> binding.rbLangEn.isChecked = true
-                "ru" -> binding.rbLangRu.isChecked = true
-                "uk" -> binding.rbLangUk.isChecked = true
-                else -> binding.rbLangSystem.isChecked = true
-            }
-        }
-
-        // 2. Theme Loading
+    private fun updateThemeSummary() {
+        val prefs = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         val savedTheme = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        when (savedTheme) {
-            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM -> binding.rbThemeSystem.isChecked = true
-            AppCompatDelegate.MODE_NIGHT_NO -> binding.rbThemeLight.isChecked = true
-            AppCompatDelegate.MODE_NIGHT_YES -> binding.rbThemeDark.isChecked = true
+        val summaryText = when (savedTheme) {
+            AppCompatDelegate.MODE_NIGHT_NO -> getString(R.string.theme_light)
+            AppCompatDelegate.MODE_NIGHT_YES -> getString(R.string.theme_dark)
+            else -> getString(R.string.theme_system)
+        }
+        binding.tvThemeSummary.text = summaryText
+    }
+
+    private fun updateLanguageSummary() {
+        val currentLocales = AppCompatDelegate.getApplicationLocales()
+        val summaryText = if (currentLocales.isEmpty) {
+            getString(R.string.lang_system)
+        } else {
+            when (currentLocales.get(0)?.language) {
+                "en" -> getString(R.string.lang_en)
+                "ru" -> getString(R.string.lang_ru)
+                "uk" -> getString(R.string.lang_uk)
+                else -> getString(R.string.lang_system)
+            }
+        }
+        binding.tvLanguageSummary.text = summaryText
+    }
+
+    private fun setupClickListeners() {
+        // Theme selector dialog
+        binding.itemSettingTheme.setOnClickListener {
+            showThemeSelectionDialog()
+        }
+
+        // Language selector dialog
+        binding.itemSettingLanguage.setOnClickListener {
+            showLanguageSelectionDialog()
+        }
+
+        // Open Wallpaper Manager
+        binding.itemSettingWallpaper.setOnClickListener {
+            openSystemWallpaperSettings()
+        }
+
+        // Open App System Settings / Permissions
+        binding.itemSettingPermissions.setOnClickListener {
+            openAppSettings()
         }
     }
 
-    private fun setupListeners() {
-        // Language Listener
-        binding.rgLanguage.setOnCheckedChangeListener { _, checkedId ->
-            val langTag = when (checkedId) {
-                R.id.rb_lang_en -> "en"
-                R.id.rb_lang_ru -> "ru"
-                R.id.rb_lang_uk -> "uk"
-                else -> "system"
-            }
-            applyLanguage(langTag)
+    private fun showThemeSelectionDialog() {
+        val prefs = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        val currentTheme = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        
+        val options = arrayOf(
+            getString(R.string.theme_system),
+            getString(R.string.theme_light),
+            getString(R.string.theme_dark)
+        )
+
+        val selectedIndex = when (currentTheme) {
+            AppCompatDelegate.MODE_NIGHT_NO -> 1
+            AppCompatDelegate.MODE_NIGHT_YES -> 2
+            else -> 0
         }
 
-        // Theme Listener
-        binding.rgTheme.setOnCheckedChangeListener { _, checkedId ->
-            val themeMode = when (checkedId) {
-                R.id.rb_theme_light -> AppCompatDelegate.MODE_NIGHT_NO
-                R.id.rb_theme_dark -> AppCompatDelegate.MODE_NIGHT_YES
-                else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.dialog_select_theme)
+            .setSingleChoiceItems(options, selectedIndex) { dialog, which ->
+                val newTheme = when (which) {
+                    1 -> AppCompatDelegate.MODE_NIGHT_NO
+                    2 -> AppCompatDelegate.MODE_NIGHT_YES
+                    else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                }
+                prefs.edit().putInt("theme_mode", newTheme).apply()
+                AppCompatDelegate.setDefaultNightMode(newTheme)
+                updateThemeSummary()
+                dialog.dismiss()
             }
-            applyTheme(themeMode)
+            .setNegativeButton(R.string.action_cancel, null)
+            .show()
+    }
+
+    private fun showLanguageSelectionDialog() {
+        val currentLocales = AppCompatDelegate.getApplicationLocales()
+        val currentLang = if (currentLocales.isEmpty) "" else currentLocales.get(0)?.language ?: ""
+
+        val options = arrayOf(
+            getString(R.string.lang_system),
+            getString(R.string.lang_en),
+            getString(R.string.lang_ru),
+            getString(R.string.lang_uk)
+        )
+
+        val selectedIndex = when (currentLang) {
+            "en" -> 1
+            "ru" -> 2
+            "uk" -> 3
+            else -> 0
         }
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.dialog_select_language)
+            .setSingleChoiceItems(options, selectedIndex) { dialog, which ->
+                val langTag = when (which) {
+                    1 -> "en"
+                    2 -> "ru"
+                    3 -> "uk"
+                    else -> "system"
+                }
+                applyLanguage(langTag)
+                updateLanguageSummary()
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.action_cancel, null)
+            .show()
     }
 
     private fun applyLanguage(langTag: String) {
@@ -91,10 +163,32 @@ class SettingsFragment : Fragment() {
         AppCompatDelegate.setApplicationLocales(localeList)
     }
 
-    private fun applyTheme(themeMode: Int) {
-        val prefs = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        prefs.edit().putInt("theme_mode", themeMode).apply()
-        AppCompatDelegate.setDefaultNightMode(themeMode)
+    private fun openSystemWallpaperSettings() {
+        try {
+            val intent = Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).apply {
+                putExtra(
+                    WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+                    ComponentName(requireContext(), VideoWallpaperService::class.java)
+                )
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val fallbackIntent = Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER)
+                startActivity(fallbackIntent)
+            } catch (ignored: Exception) {
+            }
+        }
+    }
+
+    private fun openAppSettings() {
+        try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", requireContext().packageName, null)
+            }
+            startActivity(intent)
+        } catch (ignored: Exception) {
+        }
     }
 
     override fun onDestroyView() {
