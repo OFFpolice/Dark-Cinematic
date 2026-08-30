@@ -13,13 +13,13 @@
         <!-- Ripple effect styling -->
         <item name="colorControlHighlight">@color/ripple_color</item>
 
-        <!-- Status & System Navigation bar styling -->
-        <item name="android:statusBarColor">@color/colorSurface</item>
-        <item name="android:navigationBarColor">@color/colorSurface</item>
+        <!-- Status & System Navigation bar styling for Safe Area / Edge-to-Edge -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         
         <!-- Light content switches -->
-        <item name="android:windowLightStatusBar" tools:targetApi="m">@bool/is_light_theme</item>
-        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">@bool/is_light_theme</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
     </style>
 
     <!-- Sleek and bold Toolbar Title Text Style -->

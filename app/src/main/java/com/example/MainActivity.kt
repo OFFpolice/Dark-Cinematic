@@ -2,10 +2,16 @@ package com.example
 
 import android.graphics.Typeface
 import android.os.Bundle
+import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import com.example.databinding.ActivityMainBinding
 
@@ -32,6 +38,7 @@ class MainActivity : AppCompatActivity() {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         }
 
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -40,6 +47,7 @@ class MainActivity : AppCompatActivity() {
         // Setup custom toolbar
         setSupportActionBar(binding.toolbar)
 
+        setupSafeAreaInsets()
         setupFragments(savedInstanceState)
         setupFloatingNavigation()
 
@@ -55,6 +63,32 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
+    }
+
+    private fun setupSafeAreaInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
+            val systemBars = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+
+            // Top Safe-Area: status bar insets applied as top padding to AppBarLayout
+            binding.appBarLayout.updatePadding(
+                top = systemBars.top,
+                left = systemBars.left,
+                right = systemBars.right
+            )
+
+            // Bottom Safe-Area: navigation bar insets applied as margin to floating nav-bar
+            val baseBottomMargin = (16 * resources.displayMetrics.density).toInt()
+            val baseSideMargin = (36 * resources.displayMetrics.density).toInt()
+            binding.cardFloatingNavigation.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                bottomMargin = baseBottomMargin + systemBars.bottom
+                leftMargin = baseSideMargin + systemBars.left
+                rightMargin = baseSideMargin + systemBars.right
+            }
+
+            windowInsets
+        }
     }
 
     private fun setupFragments(savedInstanceState: Bundle?) {
