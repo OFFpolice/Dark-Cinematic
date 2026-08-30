@@ -4,183 +4,47 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/colorBackground"
+    android:background="@color/colorSurface"
+    android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
-    <!-- Top AppBar / Header (Extended into status bar via insets) -->
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/app_bar_layout"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="@color/colorSurface"
-        app:elevation="4dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent">
-
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/colorSurface"
-            app:titleCentered="true"
-            app:title="@string/app_name"
-            app:titleTextColor="@color/colorTextPrimary"
-            app:titleTextAppearance="@style/ToolbarTitleTextAppearance" />
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <!-- Content Container (Starts below AppBar, extends to bottom) -->
+    <!-- Content Container (drawn first, taking full height so content can glide under top/bottom bars) -->
     <FrameLayout
         android:id="@+id/fragment_container"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintTop_toBottomOf="@id/app_bar_layout"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent" />
 
-    <!-- Floating Navigation Bar (Compact floating pill design) -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/card_floating_navigation"
+    <!-- Top Toolbar with sleek style (drawn on top) -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="0dp"
-        android:layout_height="52dp"
-        android:layout_marginBottom="16dp"
-        android:layout_marginStart="36dp"
-        android:layout_marginEnd="36dp"
-        app:layout_constraintWidth_max="290dp"
-        app:cardCornerRadius="26dp"
-        app:cardElevation="10dp"
-        app:strokeWidth="1dp"
-        app:strokeColor="@color/nav_bar_border"
-        app:cardBackgroundColor="@color/nav_bar_bg"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/colorSurface"
+        android:elevation="0dp"
+        app:titleCentered="true"
+        app:title="@string/app_name"
+        app:titleTextColor="@color/colorTextPrimary"
+        app:titleTextAppearance="@style/ToolbarTitleTextAppearance"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"/>
+
+    <!-- Modern bottom navigation bar (drawn on top) -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/colorSurface"
+        app:backgroundTint="@color/colorSurface"
+        app:elevation="0dp"
+        app:labelVisibilityMode="labeled"
+        app:menu="@menu/bottom_nav_menu"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="4dp"
-            android:paddingVertical="3dp">
-
-            <!-- Item: Gallery / DiDi -->
-            <FrameLayout
-                android:id="@+id/nav_item_gallery"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@drawable/bg_nav_active_pill"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="@drawable/bg_nav_item_ripple">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:gravity="center"
-                    android:orientation="vertical">
-
-                    <ImageView
-                        android:id="@+id/iv_nav_gallery"
-                        android:layout_width="19dp"
-                        android:layout_height="19dp"
-                        android:src="@drawable/ic_gallery"
-                        app:tint="@color/nav_active_tint"
-                        android:contentDescription="@string/tab_gallery" />
-
-                    <TextView
-                        android:id="@+id/tv_nav_gallery"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="1dp"
-                        android:text="@string/tab_gallery"
-                        android:textColor="@color/nav_active_tint"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:maxLines="1" />
-                </LinearLayout>
-            </FrameLayout>
-
-            <!-- Item: About -->
-            <FrameLayout
-                android:id="@+id/nav_item_about"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="@drawable/bg_nav_item_ripple">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:gravity="center"
-                    android:orientation="vertical">
-
-                    <ImageView
-                        android:id="@+id/iv_nav_about"
-                        android:layout_width="19dp"
-                        android:layout_height="19dp"
-                        android:src="@drawable/ic_about"
-                        app:tint="@color/nav_inactive_tint"
-                        android:contentDescription="@string/tab_about" />
-
-                    <TextView
-                        android:id="@+id/tv_nav_about"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="1dp"
-                        android:text="@string/tab_about"
-                        android:textColor="@color/nav_inactive_text"
-                        android:textSize="11sp"
-                        android:textStyle="normal"
-                        android:maxLines="1" />
-                </LinearLayout>
-            </FrameLayout>
-
-            <!-- Item: Settings -->
-            <FrameLayout
-                android:id="@+id/nav_item_settings"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="@drawable/bg_nav_item_ripple">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:gravity="center"
-                    android:orientation="vertical">
-
-                    <ImageView
-                        android:id="@+id/iv_nav_settings"
-                        android:layout_width="19dp"
-                        android:layout_height="19dp"
-                        android:src="@drawable/ic_settings"
-                        app:tint="@color/nav_inactive_tint"
-                        android:contentDescription="@string/tab_settings" />
-
-                    <TextView
-                        android:id="@+id/tv_nav_settings"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="1dp"
-                        android:text="@string/tab_settings"
-                        android:textColor="@color/nav_inactive_text"
-                        android:textSize="11sp"
-                        android:textStyle="normal"
-                        android:maxLines="1" />
-                </LinearLayout>
-            </FrameLayout>
-
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
+        app:layout_constraintRight_toRightOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
