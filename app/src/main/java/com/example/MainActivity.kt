@@ -18,11 +18,9 @@ class MainActivity : AppCompatActivity() {
     private var activeFragment: Fragment? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Fast-path theme application
-        val prefs = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        val savedTheme = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        if (AppCompatDelegate.getDefaultNightMode() != savedTheme) {
-            AppCompatDelegate.setDefaultNightMode(savedTheme)
+        // Enforce dark theme across the entire application
+        if (AppCompatDelegate.getDefaultNightMode() != AppCompatDelegate.MODE_NIGHT_YES) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         }
 
         super.onCreate(savedInstanceState)

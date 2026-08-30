@@ -33,20 +33,8 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        updateThemeSummary()
         updateLanguageSummary()
         setupClickListeners()
-    }
-
-    private fun updateThemeSummary() {
-        val prefs = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        val savedTheme = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        val summaryText = when (savedTheme) {
-            AppCompatDelegate.MODE_NIGHT_NO -> getString(R.string.theme_light)
-            AppCompatDelegate.MODE_NIGHT_YES -> getString(R.string.theme_dark)
-            else -> getString(R.string.theme_system)
-        }
-        binding.tvThemeSummary.text = summaryText
     }
 
     private fun updateLanguageSummary() {
@@ -65,11 +53,6 @@ class SettingsFragment : Fragment() {
     }
 
     private fun setupClickListeners() {
-        // Theme selector dialog
-        binding.itemSettingTheme.setOnClickListener {
-            showThemeSelectionDialog()
-        }
-
         // Language selector dialog
         binding.itemSettingLanguage.setOnClickListener {
             showLanguageSelectionDialog()
@@ -84,39 +67,6 @@ class SettingsFragment : Fragment() {
         binding.itemSettingPermissions.setOnClickListener {
             openAppSettings()
         }
-    }
-
-    private fun showThemeSelectionDialog() {
-        val prefs = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        val currentTheme = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        
-        val options = arrayOf(
-            getString(R.string.theme_system),
-            getString(R.string.theme_light),
-            getString(R.string.theme_dark)
-        )
-
-        val selectedIndex = when (currentTheme) {
-            AppCompatDelegate.MODE_NIGHT_NO -> 1
-            AppCompatDelegate.MODE_NIGHT_YES -> 2
-            else -> 0
-        }
-
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.dialog_select_theme)
-            .setSingleChoiceItems(options, selectedIndex) { dialog, which ->
-                val newTheme = when (which) {
-                    1 -> AppCompatDelegate.MODE_NIGHT_NO
-                    2 -> AppCompatDelegate.MODE_NIGHT_YES
-                    else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-                }
-                prefs.edit().putInt("theme_mode", newTheme).apply()
-                AppCompatDelegate.setDefaultNightMode(newTheme)
-                updateThemeSummary()
-                dialog.dismiss()
-            }
-            .setNegativeButton(R.string.action_cancel, null)
-            .show()
     }
 
     private fun showLanguageSelectionDialog() {
