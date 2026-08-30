@@ -36,7 +36,9 @@ class GalleryFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var videoAdapter: VideoAdapter? = null
-    private lateinit var db: WallpaperDatabase
+    private val db: WallpaperDatabase by lazy {
+        WallpaperDatabase.getInstance(requireContext().applicationContext)
+    }
 
     private val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         android.Manifest.permission.READ_MEDIA_VIDEO
@@ -52,11 +54,6 @@ class GalleryFragment : Fragment() {
         } else {
             showPermissionLayout()
         }
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        db = WallpaperDatabase.getInstance(requireContext())
     }
 
     override fun onCreateView(

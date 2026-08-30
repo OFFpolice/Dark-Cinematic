@@ -1,10 +1,9 @@
 package com.example
 
-import android.content.Context
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.Fragment
 import com.example.databinding.ActivityMainBinding
 
@@ -12,16 +11,17 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-    private val galleryFragment by lazy { GalleryFragment() }
-    private val aboutFragment by lazy { AboutFragment() }
-    private val settingsFragment by lazy { SettingsFragment() }
+    private lateinit var galleryFragment: GalleryFragment
+    private lateinit var aboutFragment: AboutFragment
+    private lateinit var settingsFragment: SettingsFragment
     private var activeFragment: Fragment? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Enforce dark theme across the entire application
-        if (AppCompatDelegate.getDefaultNightMode() != AppCompatDelegate.MODE_NIGHT_YES) {
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-        }
+        // Enable hardware acceleration at the window level
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+        )
 
         super.onCreate(savedInstanceState)
         
@@ -50,18 +50,33 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupFragments(savedInstanceState: Bundle?) {
         if (savedInstanceState == null) {
+            galleryFragment = GalleryFragment()
+            aboutFragment = AboutFragment()
+            settingsFragment = SettingsFragment()
+
             val title = getText(R.string.toolbar_gallery)
             supportActionBar?.title = title
             binding.toolbar.title = title
 
+            // Pre-add all fragments in one batch so tab switching has 0ms inflation latency
             supportFragmentManager.beginTransaction()
+                .setReorderingAllowed(true)
+                .add(R.id.fragment_container, aboutFragment, "about").hide(aboutFragment)
+                .add(R.id.fragment_container, settingsFragment, "settings").hide(settingsFragment)
                 .add(R.id.fragment_container, galleryFragment, "gallery")
-                .commit()
+                .commitNow()
+
             activeFragment = galleryFragment
         } else {
-            // Restore active fragment reference from FragmentManager
-            activeFragment = supportFragmentManager.findFragmentById(R.id.fragment_container) 
-                ?: galleryFragment
+            galleryFragment = (supportFragmentManager.findFragmentByTag("gallery") as? GalleryFragment) ?: GalleryFragment()
+            aboutFragment = (supportFragmentManager.findFragmentByTag("about") as? AboutFragment) ?: AboutFragment()
+            settingsFragment = (supportFragmentManager.findFragmentByTag("settings") as? SettingsFragment) ?: SettingsFragment()
+            activeFragment = when (binding.bottomNavigation.selectedItemId) {
+                R.id.nav_gallery -> galleryFragment
+                R.id.nav_about -> aboutFragment
+                R.id.nav_settings -> settingsFragment
+                else -> galleryFragment
+            }
             syncToolbarTitle()
         }
     }
@@ -102,7 +117,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.bottomNavigation.setOnItemReselectedListener {
-            // Do nothing on reselection to maintain instant performance
+            // Instant response - no reloading on reselection
         }
     }
 
@@ -123,7 +138,7 @@ class MainActivity : AppCompatActivity() {
             transaction.show(target)
         }
 
-        transaction.commit()
+        transaction.commitNowAllowingStateLoss()
         activeFragment = target
     }
 }

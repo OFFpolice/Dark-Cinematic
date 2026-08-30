@@ -12,12 +12,26 @@
 #   public *;
 #}
 
+# Optimization settings
+-repackageclasses ''
+-allowaccessmodification
+-dontwarn **
+-dontnote **
+
+# Strip debug logging from release builds
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}
+
 # Keep application data models and Room entities
 -keep class com.example.data.** { *; }
 -keepclassmembers class com.example.data.** { *; }
--dontwarn com.example.data.**
 
-# Keep ViewBinding and Android components
+# Keep ViewBinding and Services
 -keep class com.example.databinding.** { *; }
 -keep class com.example.VideoWallpaperService** { *; }
+
 

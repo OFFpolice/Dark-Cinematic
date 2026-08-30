@@ -57,11 +57,14 @@ android {
       excludes += setOf(
         "/META-INF/{AL2.0,LGPL2.1}",
         "/META-INF/*.kotlin_module",
+        "/META-INF/*.version",
+        "/META-INF/androidx.*",
         "/META-INF/INDEX.LIST",
         "/META-INF/DEPENDENCIES",
         "/META-INF/LICENSE*",
         "/META-INF/NOTICE*",
-        "DebugProbesKt.bin"
+        "DebugProbesKt.bin",
+        "kotlin-tooling-metadata.json"
       )
     }
     jniLibs {
@@ -92,7 +95,6 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.kotlinx.coroutines.android)
-  implementation(libs.kotlinx.coroutines.core)
   "ksp"(libs.androidx.room.compiler)
 }
 
