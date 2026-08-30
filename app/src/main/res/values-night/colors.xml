@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Brand colors (Indigo/Emerald) -->
-    <color name="primary">#818CF8</color> <!-- Light Indigo for Dark Mode -->
+    <!-- Brand colors (Indigo/Emerald/Cyan) -->
+    <color name="primary">#818CF8</color>
     <color name="primary_variant">#6366F1</color>
-    <color name="colorSecondary">#34D399</color> <!-- Light Emerald for Dark Mode -->
+    <color name="colorSecondary">#34D399</color>
     <color name="colorOnSecondary">#000000</color>
     
     <!-- Theme mapping: Dark Palette -->
@@ -13,9 +13,17 @@
     <color name="colorTextSecondary">#94A3B8</color>
     <color name="colorCardBorder">#1E293B</color>
 
+    <!-- Floating Navigation Bar Colors -->
+    <color name="nav_bar_bg">#121A2A</color>
+    <color name="nav_bar_border">#22324C</color>
+    <color name="nav_active_pill">#1E2E46</color>
+    <color name="nav_active_tint">#38BDF8</color>
+    <color name="nav_inactive_tint">#94A3B8</color>
+    <color name="nav_inactive_text">#CBD5E1</color>
+
     <color name="white">#FFFFFFFF</color>
     <color name="black">#FF000000</color>
     <color name="warning_red">#F87171</color>
-    <color name="ripple_color">#30818CF8</color>
-    <color name="shadow_color">#40000000</color>
+    <color name="ripple_color">#3038BDF8</color>
+    <color name="shadow_color">#60000000</color>
 </resources>
