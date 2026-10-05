@@ -2,7 +2,6 @@ package com.example
 
 import android.app.WallpaperManager
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -10,8 +9,6 @@ import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.os.LocaleListCompat
 import androidx.fragment.app.Fragment
 import com.example.databinding.FragmentSettingsBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -33,21 +30,35 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        updateLanguageSummary()
+        updateTexts()
         setupClickListeners()
     }
 
+    fun updateTexts() {
+        if (_binding == null) return
+
+        binding.tvCategoryAppearance.text = getString(R.string.settings_category_appearance)
+        binding.tvSettingLanguageTitle.text = getString(R.string.settings_language)
+        updateLanguageSummary()
+
+        binding.tvCategoryWallpaper.text = getString(R.string.settings_category_wallpaper)
+        binding.tvSettingWallpaperTitle.text = getString(R.string.settings_system_wallpaper_title)
+        binding.tvSettingWallpaperSummary.text = getString(R.string.settings_system_wallpaper_summary)
+
+        binding.tvCategoryGeneral.text = getString(R.string.settings_category_general)
+        binding.tvSettingPermissionsTitle.text = getString(R.string.settings_app_info_title)
+        binding.tvSettingPermissionsSummary.text = getString(R.string.settings_app_info_summary)
+        binding.tvSettingVersionTitle.text = getString(R.string.settings_version_title)
+        binding.tvSettingVersionSummary.text = getString(R.string.settings_version_summary)
+    }
+
     private fun updateLanguageSummary() {
-        val currentLocales = AppCompatDelegate.getApplicationLocales()
-        val summaryText = if (currentLocales.isEmpty) {
-            getString(R.string.lang_system)
-        } else {
-            when (currentLocales.get(0)?.language) {
-                "en" -> getString(R.string.lang_en)
-                "ru" -> getString(R.string.lang_ru)
-                "uk" -> getString(R.string.lang_uk)
-                else -> getString(R.string.lang_system)
-            }
+        val currentLang = LocaleManager.getLanguage(requireContext())
+        val summaryText = when (currentLang) {
+            LocaleManager.LANG_EN -> getString(R.string.lang_en)
+            LocaleManager.LANG_RU -> getString(R.string.lang_ru)
+            LocaleManager.LANG_UK -> getString(R.string.lang_uk)
+            else -> getString(R.string.lang_system)
         }
         binding.tvLanguageSummary.text = summaryText
     }
@@ -70,8 +81,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun showLanguageSelectionDialog() {
-        val currentLocales = AppCompatDelegate.getApplicationLocales()
-        val currentLang = if (currentLocales.isEmpty) "" else currentLocales.get(0)?.language ?: ""
+        val currentLang = LocaleManager.getLanguage(requireContext())
 
         val options = arrayOf(
             getString(R.string.lang_system),
@@ -81,9 +91,9 @@ class SettingsFragment : Fragment() {
         )
 
         val selectedIndex = when (currentLang) {
-            "en" -> 1
-            "ru" -> 2
-            "uk" -> 3
+            LocaleManager.LANG_EN -> 1
+            LocaleManager.LANG_RU -> 2
+            LocaleManager.LANG_UK -> 3
             else -> 0
         }
 
@@ -91,26 +101,17 @@ class SettingsFragment : Fragment() {
             .setTitle(R.string.dialog_select_language)
             .setSingleChoiceItems(options, selectedIndex) { dialog, which ->
                 val langTag = when (which) {
-                    1 -> "en"
-                    2 -> "ru"
-                    3 -> "uk"
-                    else -> "system"
+                    1 -> LocaleManager.LANG_EN
+                    2 -> LocaleManager.LANG_RU
+                    3 -> LocaleManager.LANG_UK
+                    else -> LocaleManager.LANG_SYSTEM
                 }
-                applyLanguage(langTag)
-                updateLanguageSummary()
+                LocaleManager.setLanguage(requireContext(), langTag)
+                (activity as? MainActivity)?.onLanguageChanged()
                 dialog.dismiss()
             }
             .setNegativeButton(R.string.action_cancel, null)
             .show()
-    }
-
-    private fun applyLanguage(langTag: String) {
-        val localeList = if (langTag == "system") {
-            LocaleListCompat.getEmptyLocaleList()
-        } else {
-            LocaleListCompat.forLanguageTags(langTag)
-        }
-        AppCompatDelegate.setApplicationLocales(localeList)
     }
 
     private fun openSystemWallpaperSettings() {

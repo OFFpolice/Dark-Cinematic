@@ -70,11 +70,18 @@ class GalleryFragment : Fragment() {
 
         setupRecyclerView()
 
+        updateTexts()
+
         binding.btnGrantPermission.setOnClickListener {
             requestPermissionLauncher.launch(storagePermission)
         }
 
-        checkPermissionsAndLoadVideos()
+        // Post video query after initial frame draw so the UI renders the first frame with zero delay
+        view.post {
+            if (isAdded) {
+                checkPermissionsAndLoadVideos()
+            }
+        }
     }
 
     private fun setupRecyclerView() {
@@ -131,14 +138,14 @@ class GalleryFragment : Fragment() {
     private fun showPermissionLayout() {
         binding.progressLoading.visibility = View.GONE
         binding.layoutEmpty.visibility = View.GONE
-        binding.layoutGalleryContent.visibility = View.GONE
+        binding.recyclerGallery.visibility = View.GONE
         binding.layoutPermission.visibility = View.VISIBLE
     }
 
     private fun loadVideosAsync() {
         binding.progressLoading.visibility = View.VISIBLE
         binding.layoutEmpty.visibility = View.GONE
-        binding.layoutGalleryContent.visibility = View.GONE
+        binding.recyclerGallery.visibility = View.GONE
 
         lifecycleScope.launch {
             val verticalVideosList = withContext(Dispatchers.IO) {
@@ -149,11 +156,11 @@ class GalleryFragment : Fragment() {
 
             if (verticalVideosList.isEmpty()) {
                 binding.layoutEmpty.visibility = View.VISIBLE
-                binding.layoutGalleryContent.visibility = View.GONE
+                binding.recyclerGallery.visibility = View.GONE
                 videoAdapter?.submitList(emptyList())
             } else {
                 binding.layoutEmpty.visibility = View.GONE
-                binding.layoutGalleryContent.visibility = View.VISIBLE
+                binding.recyclerGallery.visibility = View.VISIBLE
                 videoAdapter?.submitList(verticalVideosList)
             }
         }
@@ -314,6 +321,14 @@ class GalleryFragment : Fragment() {
                 Log.e("Gallery", "Live Wallpaper chooser is unavailable", ex)
             }
         }
+    }
+
+    fun updateTexts() {
+        if (_binding == null) return
+        binding.tvPermissionMsg.text = getString(R.string.permission_required_gallery)
+        binding.btnGrantPermission.text = getString(R.string.grant_permission)
+        binding.tvEmptyMsg.text = getString(R.string.no_videos_found)
+        videoAdapter?.notifyItemChanged(0)
     }
 
     override fun onDestroyView() {

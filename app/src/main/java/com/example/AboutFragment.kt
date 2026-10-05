@@ -26,6 +26,8 @@ class AboutFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        updateTexts()
+
         binding.cardTelegram.setOnClickListener {
             openUrl("https://t.me/OFFpolice")
         }
@@ -37,6 +39,19 @@ class AboutFragment : Fragment() {
         binding.cardInstagram.setOnClickListener {
             openUrl("https://www.instagram.com/offpolice2077")
         }
+    }
+
+    fun updateTexts() {
+        if (_binding == null) return
+
+        binding.tvAboutAppName.text = getString(R.string.about_app_name)
+        binding.tvAboutVersion.text = getString(R.string.app_version)
+        binding.tvAboutTitle.text = getString(R.string.about_title)
+        binding.tvAboutDescription.text = getString(R.string.about_description)
+        binding.tvWarningTitle.text = getString(R.string.warning_title)
+        binding.tvWarningDescription.text = getString(R.string.warning_description)
+        binding.tvAuthorTitle.text = getString(R.string.author_title)
+        binding.tvDeveloperInfo.text = getString(R.string.developer_info)
     }
 
     private fun openUrl(url: String) {

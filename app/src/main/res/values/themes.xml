@@ -22,6 +22,13 @@
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">@bool/is_light_theme</item>
     </style>
 
+    <!-- Official SplashScreen API theme -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/colorBackground</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_gallery</item>
+        <item name="postSplashScreenTheme">@style/Theme.MyApplication</item>
+    </style>
+
     <!-- Sleek and bold Toolbar Title Text Style -->
     <style name="ToolbarTitleTextAppearance" parent="TextAppearance.Material3.TitleLarge">
         <item name="android:textStyle">bold</item>

@@ -1,9 +1,12 @@
 package com.example
 
+import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.Fragment
 import com.example.databinding.ActivityMainBinding
 
@@ -11,12 +14,27 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-    private lateinit var galleryFragment: GalleryFragment
-    private lateinit var aboutFragment: AboutFragment
-    private lateinit var settingsFragment: SettingsFragment
-    private var activeFragment: Fragment? = null
+    private var galleryFragment: GalleryFragment? = null
+    private var aboutFragment: AboutFragment? = null
+    private var settingsFragment: SettingsFragment? = null
+
+    private var currentTabId: Int = R.id.nav_gallery
+
+    companion object {
+        private const val TAG_GALLERY = "gallery"
+        private const val TAG_ABOUT = "about"
+        private const val TAG_SETTINGS = "settings"
+        private const val KEY_SELECTED_TAB = "key_selected_tab"
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleManager.wrapContext(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Official Android SplashScreen API - native instant window before process start
+        installSplashScreen()
+
         // Enable hardware acceleration at the window level
         window.setFlags(
             WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
@@ -24,20 +42,111 @@ class MainActivity : AppCompatActivity() {
         )
 
         super.onCreate(savedInstanceState)
-        
+        LocaleManager.applyLocale(this)
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         // Setup custom toolbar
         setSupportActionBar(binding.toolbar)
 
-        setupFragments(savedInstanceState)
-        setupBottomNavigation()
+        val initialTab = savedInstanceState?.getInt(KEY_SELECTED_TAB) ?: R.id.nav_gallery
+        currentTabId = initialTab
 
-        // Handle custom back action: return to Gallery if on other screens
+        // Minimal cold start: initialize ONLY the initial tab for the fastest first frame
+        initInitialFragment(savedInstanceState, initialTab)
+
+        binding.bottomNavigation.selectedItemId = initialTab
+        syncToolbarTitle()
+
+        setupBottomNavigation()
+        setupBackPress()
+
+        // Defer pre-warming of non-visible tabs to after the first frame has rendered
+        binding.root.post {
+            preloadOtherTabs()
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(KEY_SELECTED_TAB, currentTabId)
+    }
+
+    private fun initInitialFragment(savedInstanceState: Bundle?, initialTab: Int) {
+        val fm = supportFragmentManager
+
+        // Reconnect existing fragments if restored from state
+        galleryFragment = fm.findFragmentByTag(TAG_GALLERY) as? GalleryFragment
+        aboutFragment = fm.findFragmentByTag(TAG_ABOUT) as? AboutFragment
+        settingsFragment = fm.findFragmentByTag(TAG_SETTINGS) as? SettingsFragment
+
+        val target = when (initialTab) {
+            R.id.nav_about -> aboutFragment ?: AboutFragment().also { aboutFragment = it }
+            R.id.nav_settings -> settingsFragment ?: SettingsFragment().also { settingsFragment = it }
+            else -> galleryFragment ?: GalleryFragment().also { galleryFragment = it }
+        }
+
+        val tag = when (initialTab) {
+            R.id.nav_about -> TAG_ABOUT
+            R.id.nav_settings -> TAG_SETTINGS
+            else -> TAG_GALLERY
+        }
+
+        val transaction = fm.beginTransaction().setReorderingAllowed(true)
+        if (!target.isAdded) {
+            transaction.add(R.id.fragment_container, target, tag)
+        }
+        transaction.show(target)
+
+        // If other fragments exist from state restoration, hide them
+        listOfNotNull(galleryFragment, aboutFragment, settingsFragment).forEach { f ->
+            if (f !== target && f.isAdded) {
+                transaction.hide(f)
+            }
+        }
+        transaction.commitNow()
+    }
+
+    private fun preloadOtherTabs() {
+        if (isFinishing || isDestroyed) return
+        val fm = supportFragmentManager
+        val transaction = fm.beginTransaction().setReorderingAllowed(true)
+        var needsCommit = false
+
+        if (aboutFragment == null && fm.findFragmentByTag(TAG_ABOUT) == null) {
+            val about = AboutFragment().also { aboutFragment = it }
+            transaction.add(R.id.fragment_container, about, TAG_ABOUT).hide(about)
+            needsCommit = true
+        }
+        if (settingsFragment == null && fm.findFragmentByTag(TAG_SETTINGS) == null) {
+            val settings = SettingsFragment().also { settingsFragment = it }
+            transaction.add(R.id.fragment_container, settings, TAG_SETTINGS).hide(settings)
+            needsCommit = true
+        }
+
+        if (needsCommit) {
+            transaction.commitAllowingStateLoss()
+        }
+    }
+
+    private fun setupBottomNavigation() {
+        binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
+            if (menuItem.itemId != currentTabId) {
+                showTab(menuItem.itemId)
+            }
+            true
+        }
+
+        binding.bottomNavigation.setOnItemReselectedListener {
+            // Instant response - no reloading on reselection
+        }
+    }
+
+    private fun setupBackPress() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (binding.bottomNavigation.selectedItemId != R.id.nav_gallery) {
+                if (currentTabId != R.id.nav_gallery) {
                     binding.bottomNavigation.selectedItemId = R.id.nav_gallery
                 } else {
                     isEnabled = false
@@ -48,46 +157,50 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun setupFragments(savedInstanceState: Bundle?) {
-        if (savedInstanceState == null) {
-            galleryFragment = GalleryFragment()
-            aboutFragment = AboutFragment()
-            settingsFragment = SettingsFragment()
+    fun showTab(tabId: Int) {
+        currentTabId = tabId
+        val fm = supportFragmentManager
 
-            val title = getText(R.string.toolbar_gallery)
-            supportActionBar?.title = title
-            binding.toolbar.title = title
-
-            // Pre-add all fragments in one batch so tab switching has 0ms inflation latency
-            supportFragmentManager.beginTransaction()
-                .setReorderingAllowed(true)
-                .add(R.id.fragment_container, aboutFragment, "about").hide(aboutFragment)
-                .add(R.id.fragment_container, settingsFragment, "settings").hide(settingsFragment)
-                .add(R.id.fragment_container, galleryFragment, "gallery")
-                .commitNow()
-
-            activeFragment = galleryFragment
-        } else {
-            galleryFragment = (supportFragmentManager.findFragmentByTag("gallery") as? GalleryFragment) ?: GalleryFragment()
-            aboutFragment = (supportFragmentManager.findFragmentByTag("about") as? AboutFragment) ?: AboutFragment()
-            settingsFragment = (supportFragmentManager.findFragmentByTag("settings") as? SettingsFragment) ?: SettingsFragment()
-            activeFragment = when (binding.bottomNavigation.selectedItemId) {
-                R.id.nav_gallery -> galleryFragment
-                R.id.nav_about -> aboutFragment
-                R.id.nav_settings -> settingsFragment
-                else -> galleryFragment
+        val target: Fragment = when (tabId) {
+            R.id.nav_about -> {
+                aboutFragment ?: (fm.findFragmentByTag(TAG_ABOUT) as? AboutFragment)
+                    ?: AboutFragment().also { aboutFragment = it }
             }
-            syncToolbarTitle()
+            R.id.nav_settings -> {
+                settingsFragment ?: (fm.findFragmentByTag(TAG_SETTINGS) as? SettingsFragment)
+                    ?: SettingsFragment().also { settingsFragment = it }
+            }
+            else -> {
+                galleryFragment ?: (fm.findFragmentByTag(TAG_GALLERY) as? GalleryFragment)
+                    ?: GalleryFragment().also { galleryFragment = it }
+            }
         }
-    }
 
-    override fun onPostCreate(savedInstanceState: Bundle?) {
-        super.onPostCreate(savedInstanceState)
+        val tag = when (tabId) {
+            R.id.nav_about -> TAG_ABOUT
+            R.id.nav_settings -> TAG_SETTINGS
+            else -> TAG_GALLERY
+        }
+
+        val transaction = fm.beginTransaction().setReorderingAllowed(true)
+
+        if (!target.isAdded) {
+            transaction.add(R.id.fragment_container, target, tag)
+        }
+        transaction.show(target)
+
+        listOfNotNull(galleryFragment, aboutFragment, settingsFragment).forEach { f ->
+            if (f !== target && f.isAdded && !f.isHidden) {
+                transaction.hide(f)
+            }
+        }
+
+        transaction.commitNowAllowingStateLoss()
         syncToolbarTitle()
     }
 
     private fun syncToolbarTitle() {
-        val title = when (binding.bottomNavigation.selectedItemId) {
+        val title = when (currentTabId) {
             R.id.nav_gallery -> getText(R.string.toolbar_gallery)
             R.id.nav_about -> getText(R.string.toolbar_about)
             R.id.nav_settings -> getText(R.string.toolbar_settings)
@@ -97,48 +210,24 @@ class MainActivity : AppCompatActivity() {
         binding.toolbar.title = title
     }
 
-    private fun setupBottomNavigation() {
-        binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
-            val targetFragment = when (menuItem.itemId) {
-                R.id.nav_gallery -> galleryFragment
-                R.id.nav_about -> aboutFragment
-                R.id.nav_settings -> settingsFragment
-                else -> galleryFragment
-            }
-            val title = when (menuItem.itemId) {
-                R.id.nav_gallery -> getText(R.string.toolbar_gallery)
-                R.id.nav_about -> getText(R.string.toolbar_about)
-                R.id.nav_settings -> getText(R.string.toolbar_settings)
-                else -> getText(R.string.toolbar_gallery)
-            }
+    fun onLanguageChanged() {
+        syncToolbarTitle()
+        updateBottomNavTitles()
 
-            switchFragment(targetFragment, title)
-            true
-        }
-
-        binding.bottomNavigation.setOnItemReselectedListener {
-            // Instant response - no reloading on reselection
-        }
+        galleryFragment?.updateTexts()
+        aboutFragment?.updateTexts()
+        settingsFragment?.updateTexts()
     }
 
-    private fun switchFragment(target: Fragment, title: CharSequence) {
-        if (activeFragment === target) return
+    private fun updateBottomNavTitles() {
+        binding.bottomNavigation.menu.findItem(R.id.nav_gallery)?.title = getString(R.string.tab_gallery)
+        binding.bottomNavigation.menu.findItem(R.id.nav_about)?.title = getString(R.string.tab_about)
+        binding.bottomNavigation.menu.findItem(R.id.nav_settings)?.title = getString(R.string.tab_settings)
+    }
 
-        supportActionBar?.title = title
-        binding.toolbar.title = title
-
-        val transaction = supportFragmentManager.beginTransaction()
-            .setReorderingAllowed(true)
-
-        activeFragment?.let { transaction.hide(it) }
-
-        if (!target.isAdded) {
-            transaction.add(R.id.fragment_container, target)
-        } else {
-            transaction.show(target)
-        }
-
-        transaction.commitNowAllowingStateLoss()
-        activeFragment = target
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        LocaleManager.applyLocale(this)
+        onLanguageChanged()
     }
 }
