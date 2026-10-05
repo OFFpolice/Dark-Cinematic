@@ -287,7 +287,9 @@ class GalleryFragment : Fragment() {
                     db.wallpaperDao.insertWallpaper(wallpaper)
 
                     withContext(Dispatchers.Main) {
-                        launchLiveWallpaperSettings()
+                        if (isAdded) {
+                            launchLiveWallpaperSettings()
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e("Gallery", "Failed to insert active item into Database", e)

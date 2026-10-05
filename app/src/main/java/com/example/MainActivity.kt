@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.Fragment
 import com.example.databinding.ActivityMainBinding
 
@@ -32,9 +31,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Official Android SplashScreen API - native instant window before process start
-        installSplashScreen()
-
         // Enable hardware acceleration at the window level
         window.setFlags(
             WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
@@ -53,7 +49,6 @@ class MainActivity : AppCompatActivity() {
         val initialTab = savedInstanceState?.getInt(KEY_SELECTED_TAB) ?: R.id.nav_gallery
         currentTabId = initialTab
 
-        // Minimal cold start: initialize ONLY the initial tab for the fastest first frame
         initInitialFragment(savedInstanceState, initialTab)
 
         binding.bottomNavigation.selectedItemId = initialTab
@@ -82,9 +77,9 @@ class MainActivity : AppCompatActivity() {
         settingsFragment = fm.findFragmentByTag(TAG_SETTINGS) as? SettingsFragment
 
         val target = when (initialTab) {
-            R.id.nav_about -> aboutFragment ?: AboutFragment().also { aboutFragment = it }
-            R.id.nav_settings -> settingsFragment ?: SettingsFragment().also { settingsFragment = it }
-            else -> galleryFragment ?: GalleryFragment().also { galleryFragment = it }
+            R.id.nav_about -> (aboutFragment ?: AboutFragment()).also { aboutFragment = it }
+            R.id.nav_settings -> (settingsFragment ?: SettingsFragment()).also { settingsFragment = it }
+            else -> (galleryFragment ?: GalleryFragment()).also { galleryFragment = it }
         }
 
         val tag = when (initialTab) {
@@ -163,16 +158,16 @@ class MainActivity : AppCompatActivity() {
 
         val target: Fragment = when (tabId) {
             R.id.nav_about -> {
-                aboutFragment ?: (fm.findFragmentByTag(TAG_ABOUT) as? AboutFragment)
-                    ?: AboutFragment().also { aboutFragment = it }
+                (aboutFragment ?: (fm.findFragmentByTag(TAG_ABOUT) as? AboutFragment)
+                    ?: AboutFragment()).also { aboutFragment = it }
             }
             R.id.nav_settings -> {
-                settingsFragment ?: (fm.findFragmentByTag(TAG_SETTINGS) as? SettingsFragment)
-                    ?: SettingsFragment().also { settingsFragment = it }
+                (settingsFragment ?: (fm.findFragmentByTag(TAG_SETTINGS) as? SettingsFragment)
+                    ?: SettingsFragment()).also { settingsFragment = it }
             }
             else -> {
-                galleryFragment ?: (fm.findFragmentByTag(TAG_GALLERY) as? GalleryFragment)
-                    ?: GalleryFragment().also { galleryFragment = it }
+                (galleryFragment ?: (fm.findFragmentByTag(TAG_GALLERY) as? GalleryFragment)
+                    ?: GalleryFragment()).also { galleryFragment = it }
             }
         }
 

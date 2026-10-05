@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Build
-import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.os.LocaleListCompat
 import java.util.Locale
 
 object LocaleManager {
@@ -37,13 +35,6 @@ object LocaleManager {
         if (appContext != null && appContext !== context) {
             updateResourcesLocale(appContext, targetLocale)
         }
-
-        val localeList = if (langTag == LANG_SYSTEM) {
-            LocaleListCompat.getEmptyLocaleList()
-        } else {
-            LocaleListCompat.forLanguageTags(langTag)
-        }
-        AppCompatDelegate.setApplicationLocales(localeList)
     }
 
     @Suppress("DEPRECATION")
