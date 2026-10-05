@@ -25,7 +25,7 @@
     <!-- Official SplashScreen API theme -->
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/colorBackground</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_gallery</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_app_icon_clean</item>
         <item name="postSplashScreenTheme">@style/Theme.MyApplication</item>
     </style>
 
